@@ -23,3 +23,6 @@ transformers
 torch
 sentence-transformers
 langchain-huggingface
+gTTS
+python-docx
+PyPDF2

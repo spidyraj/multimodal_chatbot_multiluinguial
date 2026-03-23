@@ -6,8 +6,10 @@ from langchain_pinecone import PineconeVectorStore
 from langchain_groq import ChatGroq
 from langchain.chains import ConversationalRetrievalChain
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from PyPDF2 import PdfReader
 import docx
+from gtts import gTTS
+import uuid
+from PyPDF2 import PdfReader
 
 class RAGService:
     def __init__(self, groq_api_key: str, pinecone_api_key: str, index_name: str = "queryvault"):
@@ -55,7 +57,12 @@ class RAGService:
         )
         return "Documents processed successfully"
 
-    def get_response(self, question: str, chat_history: List[tuple], user_id: int):
+    def get_response(self, question: str, chat_history: List[tuple], user_id: int, language: str = "English"):
+        # Set system prompt based on language
+        system_prompt = "You are a professional AI Assistant. Reply in English."
+        if language == "Hindi":
+            system_prompt = "आप एक पेशेवर एआई सहायक हैं। कृपया हिंदी में उत्तर दें।"
+
         # Modern PineconeVectorStore usage
         vectorstore = PineconeVectorStore.from_existing_index(
             index_name=self.index_name,
@@ -69,5 +76,19 @@ class RAGService:
             return_source_documents=True
         )
         
-        response = chain.invoke({"question": question, "chat_history": chat_history})
-        return response["answer"]
+        response = chain.invoke({"question": f"{system_prompt}\n\nQuery: {question}", "chat_history": chat_history})
+        answer_text = response["answer"]
+
+        # Generate TTS Audio
+        audio_filename = f"{uuid.uuid4()}.mp3"
+        audio_path = os.path.join("static", "audio", audio_filename)
+        os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+        
+        tts_lang = "hi" if language == "Hindi" else "en"
+        tts = gTTS(text=answer_text, lang=tts_lang)
+        tts.save(audio_path)
+        
+        return {
+            "answer": answer_text,
+            "audio_url": f"/static/audio/{audio_filename}"
+        }

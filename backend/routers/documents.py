@@ -27,11 +27,11 @@ async def upload_documents(files: List[UploadFile] = File(...), user_id: int = 1
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/chat")
-async def chat(question: str, chat_history: List[List[str]] = [], user_id: int = 1):
+async def chat(question: str, chat_history: List[List[str]] = [], user_id: int = 1, language: str = "English"):
     # Convert chat_history list of lists to list of tuples for LangChain
     history = [tuple(msg) for msg in chat_history]
     try:
-        response = rag_service.get_response(question, history, user_id)
-        return {"response": response}
+        response = rag_service.get_response(question, history, user_id, language)
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

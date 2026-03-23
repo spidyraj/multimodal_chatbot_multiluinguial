@@ -3,6 +3,7 @@ from db.models import Base
 from db.session import engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,6 +16,10 @@ def startup_event():
     print("Initializng database tables...")
     Base.metadata.create_all(bind=engine)
     print("Database tables initialized!")
+
+# Create static directory if it doesn't exist
+os.makedirs("static/audio", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # CORS Configuration
 frontend_url = os.getenv("FRONTEND_URL", "").strip().replace("'", "").replace('"', "")
