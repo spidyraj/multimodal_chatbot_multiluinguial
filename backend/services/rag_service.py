@@ -1,7 +1,7 @@
 import os
 from typing import List, Dict, Any
 from pinecone import Pinecone, ServerlessSpec
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Pinecone as PineconeStore
 from langchain_groq import ChatGroq
 from langchain.chains import ConversationalRetrievalChain

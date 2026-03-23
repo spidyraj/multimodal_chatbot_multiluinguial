@@ -1,4 +1,6 @@
 import os
+from db.models import Base
+from db.session import engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -6,6 +8,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI(title="Query Vault 2.0 API", version="1.0.0")
+
+@app.on_event("startup")
+def startup_event():
+    # Automatically create database tables on startup
+    print("Initializng database tables...")
+    Base.metadata.create_all(bind=engine)
+    print("Database tables initialized!")
 
 # CORS Configuration
 frontend_url = os.getenv("FRONTEND_URL", "*")
