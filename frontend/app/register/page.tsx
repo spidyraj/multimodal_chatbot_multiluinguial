@@ -11,9 +11,11 @@ export default function Register() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Clean API URL: Remove quotes if any and trailing slashes
-    let apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/['"]/g, '');
-    if (apiUrl.endsWith('/')) apiUrl = apiUrl.slice(0, -1);
+    // Clean API URL: Remove quotes (start/end) and any trailing slashes
+    let apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+      .trim()
+      .replace(/^['"]|['"]$/g, '')
+      .replace(/\/+$/, '');
 
     // Backend expects query parameters for register
     const queryParams = new URLSearchParams({

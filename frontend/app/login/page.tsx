@@ -15,9 +15,11 @@ export default function Login() {
     formData.append('username', username);
     formData.append('password', password);
 
-    // Clean API URL: Remove quotes if any and trailing slashes
-    let apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/['"]/g, '');
-    if (apiUrl.endsWith('/')) apiUrl = apiUrl.slice(0, -1);
+    // Clean API URL: Remove quotes (start/end) and any trailing slashes
+    let apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+      .trim()
+      .replace(/^['"]|['"]$/g, '')
+      .replace(/\/+$/, '');
 
     const res = await fetch(`${apiUrl}/auth/login`, {
       method: 'POST',
