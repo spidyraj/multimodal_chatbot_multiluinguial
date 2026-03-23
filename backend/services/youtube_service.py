@@ -60,7 +60,6 @@ class YouTubeService:
             'format': 'm4a/bestaudio/best',
             'outtmpl': audio_path,
             'quiet': True,
-            'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a'}],
         }
         
         try:
