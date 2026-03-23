@@ -36,12 +36,16 @@ class YouTubeService:
         try:
             # More robust transcript fetching (tries all available languages)
             try:
-                transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+                transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'hi'])
             except:
-                # Fallback: list all and try to find any available
-                transcripts = YouTubeTranscriptApi.list_transcripts(video_id)
-                transcript_obj = transcripts.find_transcript(['en', 'hi', 'en-US', 'hi-IN'])
-                transcript_list = transcript_obj.fetch()
+                # Fallback to listing all and picking the first available
+                try:
+                    transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+                except Exception as inner_e:
+                    # If everything fails, try to list them explicitly
+                    # Using the list_transcripts function which might be what's needed
+                    from youtube_transcript_api import YouTubeTranscriptApi as YT
+                    transcript_list = YT.get_transcript(video_id)
             
             # Combine transcript chunks
             transcript_text = ' '.join([chunk['text'] for chunk in transcript_list])

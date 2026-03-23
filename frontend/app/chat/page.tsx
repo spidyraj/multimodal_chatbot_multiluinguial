@@ -324,7 +324,7 @@ export default function ChatPage() {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col relative transition-all duration-500 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 scroll-smooth pb-40">
+        <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 scroll-smooth pb-64">
           
           {/* Main Scene Branding */}
           <div className="flex justify-center mb-8">
@@ -399,6 +399,7 @@ export default function ChatPage() {
               </div>
             </div>
           ))}
+          <div className="h-20" /> {/* Spacer to prevent overlap with input bar */}
           <div ref={scrollRef} />
         </div>
 
