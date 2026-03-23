@@ -15,4 +15,3 @@ langchain-core<0.4
 langchain-text-splitters<0.4
 faiss-cpu
 youtube-transcript-api
-yt-dlp

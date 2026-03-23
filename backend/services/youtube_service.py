@@ -10,9 +10,6 @@ from langchain.docstore.document import Document
 from gtts import gTTS
 import uuid
 from langchain_community.embeddings import HuggingFaceEmbeddings
-import yt_dlp
-import requests
-
 class CustomChunk:
     def __init__(self, text, start, duration):
         self.text = text
@@ -41,65 +38,12 @@ class YouTubeService:
         from youtube_transcript_api import YouTubeTranscriptApi
         youtube_api = YouTubeTranscriptApi()
         try:
-            # Try native API first
+            # Fetch using standard API
             return youtube_api.fetch(video_id, ['en', 'hi', 'en-US', 'hi-IN'])
         except Exception as e:
-            # If native API fails (IP Block, Disabled Captions, None generated), use Whisper audio fallback
-            try:
-                print(f"Native fetch failed (likely IP Block or No Captions). Falling back to Whisper AI for video {video_id}...")
-                return self._fallback_whisper_transcription(video_id)
-            except Exception as whisper_e:
-                raise Exception(f"Native captions unavailable AND Whisper AI generation failed: {str(whisper_e)}. Original API Error: {str(e)}")
+            # Provide an extremely clean error message instead of huge stack traces
+            raise Exception("This video does not have available captions, or YouTube has restricted access to it from our servers.")
 
-    def _fallback_whisper_transcription(self, video_id: str) -> list:
-        url = f"https://www.youtube.com/watch?v={video_id}"
-        audio_path = os.path.join("static", "audio", f"{video_id}_temp.m4a")
-        os.makedirs(os.path.dirname(audio_path), exist_ok=True)
-        
-        ydl_opts = {
-            'format': 'm4a/bestaudio/best',
-            'outtmpl': audio_path,
-            'quiet': True,
-            'extractor_args': {'youtube': ['player_client=android']},
-        }
-        
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-                
-            with open(audio_path, "rb") as audio_file:
-                headers = {"Authorization": f"Bearer {self.api_key}"}
-                data = {
-                    "model": "whisper-large-v3", # Groq's insanely fast Whisper
-                    "response_format": "verbose_json"
-                }
-                files = {"file": (f"{video_id}.m4a", audio_file, "audio/m4a")}
-                
-                response = requests.post(
-                    "https://api.groq.com/openai/v1/audio/transcriptions",
-                    headers=headers,
-                    data=data,
-                    files=files
-                )
-                
-            if response.status_code != 200:
-                raise Exception(f"Groq API error: {response.text}")
-                
-            result = response.json()
-            chunks = []
-            for seg in result.get('segments', []):
-                chunks.append(CustomChunk(
-                    text=seg['text'],
-                    start=seg.get('start', 0.0),
-                    duration=seg.get('end', 0.0) - seg.get('start', 0.0)
-                ))
-            return chunks
-        finally:
-            if os.path.exists(audio_path):
-                try:
-                    os.remove(audio_path)
-                except:
-                    pass
 
     def get_summary(self, video_url: str, language: str = "English") -> str:
         video_id = self.extract_video_id(video_url)

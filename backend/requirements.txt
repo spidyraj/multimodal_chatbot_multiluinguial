@@ -26,4 +26,3 @@ langchain-huggingface
 gTTS
 python-docx
 PyPDF2
-yt-dlp
