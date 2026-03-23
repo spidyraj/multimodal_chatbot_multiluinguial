@@ -60,7 +60,15 @@ class YouTubeService:
             summary_chain = summary_prompt | self.llm | StrOutputParser()
             return summary_chain.invoke({"transcript": transcript_text})
         except Exception as e:
-            return f"Error fetching transcript: {str(e)}. (Note: Some videos have transcripts disabled by the owner)."
+            error_msg = str(e)
+            if "Could not retrieve a transcript" in error_msg:
+                return "Error: This video doesn't have available transcripts. This could be because:\n• The video has no closed captions\n• The video is private or restricted\n• The video has been removed\n\nPlease try a different YouTube video that has closed captions enabled."
+            elif "InvalidVideoId" in error_msg:
+                return "Error: Invalid YouTube video ID. Please check the URL and try again."
+            elif "VideoUnavailable" in error_msg:
+                return "Error: This video is not available or has been removed."
+            else:
+                return f"Error processing video: {str(e)}"
 
     def chat(self, video_url: str, question: str, chat_history: list, language: str = "English"):
         video_id = self.extract_video_id(video_url)
@@ -83,12 +91,12 @@ class YouTubeService:
             # Create documents with timestamps
             documents = []
             for chunk in transcript_list:
-                start_time = chunk['start']
+                start_time = chunk.start
                 minutes = int(start_time // 60)
                 seconds = int(start_time % 60)
                 timestamp = f"{minutes:02d}:{seconds:02d}"
                 doc = Document(
-                    page_content=f"[{timestamp}] {chunk['text']}",
+                    page_content=f"[{timestamp}] {chunk.text}",
                     metadata={"timestamp": timestamp}
                 )
                 documents.append(doc)
