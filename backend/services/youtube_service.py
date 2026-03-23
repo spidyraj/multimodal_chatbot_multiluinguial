@@ -34,8 +34,8 @@ class YouTubeService:
             return "Invalid YouTube URL"
 
         try:
-            # Fetch transcript using the more robust list_transcripts method
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id).find_transcript(['en', 'hi', 'en-US']).fetch()
+            # Fetch transcript using the more standard get_transcript method
+            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
             # Combine transcript chunks
             transcript_text = ' '.join([chunk['text'] for chunk in transcript_list])
             self.transcript_cache[video_id] = transcript_list # Store original list for RAG
