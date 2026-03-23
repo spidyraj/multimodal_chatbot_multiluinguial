@@ -28,24 +28,25 @@ class YouTubeService:
                 return match.group(1)
         return None
 
+    def _fetch_transcript(self, video_id: str) -> list:
+        try:
+            return YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'en-US', 'hi', 'hi-IN'])
+        except:
+            try:
+                return YouTubeTranscriptApi.get_transcript(video_id)
+            except Exception:
+                # If standard fetch fails, try the absolute module default
+                from youtube_transcript_api import YouTubeTranscriptApi as YT
+                return YT.get_transcript(video_id)
+
     def get_summary(self, video_url: str, language: str = "English") -> str:
         video_id = self.extract_video_id(video_url)
         if not video_id:
             return "Invalid YouTube URL"
 
         try:
-            # More robust transcript fetching (tries all available languages)
-            try:
-                transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'hi'])
-            except:
-                # Fallback to listing all and picking the first available
-                try:
-                    transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-                except Exception as inner_e:
-                    # If everything fails, try to list them explicitly
-                    # Using the list_transcripts function which might be what's needed
-                    from youtube_transcript_api import YouTubeTranscriptApi as YT
-                    transcript_list = YT.get_transcript(video_id)
+            # Fetch with unified robust method
+            transcript_list = self._fetch_transcript(video_id)
             
             # Combine transcript chunks
             transcript_text = ' '.join([chunk['text'] for chunk in transcript_list])
@@ -74,12 +75,7 @@ class YouTubeService:
         try:
             # Fetch transcript if not cached
             if video_id not in self.transcript_cache:
-                try:
-                    transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-                except:
-                    transcripts = YouTubeTranscriptApi.list_transcripts(video_id)
-                    transcript_obj = transcripts.find_transcript(['en', 'hi', 'en-US', 'hi-IN'])
-                    transcript_list = transcript_obj.fetch()
+                transcript_list = self._fetch_transcript(video_id)
                 self.transcript_cache[video_id] = transcript_list
             else:
                 transcript_list = self.transcript_cache[video_id]
@@ -130,4 +126,4 @@ class YouTubeService:
             }
 
         except Exception as e:
-            return {"answer": f"Error in YouTube chat: {str(e)}", "audio_url": None}
+            return {"answer": f"Error fetching or processing transcript. The video might not have captions available. (Details: {str(e)})", "audio_url": None}
