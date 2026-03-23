@@ -12,7 +12,7 @@ type Message = {
 export default function ChatPage() {
   // Separate chat histories for RAG and YouTube
   const [ragMessages, setRagMessages] = useState<Message[]>([
-    { role: 'bot', content: 'Hello! I am your RAG Assistant. Upload documents and ask me anything!' }
+    { role: 'bot', content: 'WELCOME TO QUERY VAULT 2.0 🚀 | Upload your documents and ask me anything!' }
   ]);
   const [ytMessages, setYtMessages] = useState<Message[]>([
     { role: 'bot', content: 'Paste a YouTube link above and I can help you summarize or chat about it!' }
@@ -31,6 +31,10 @@ export default function ChatPage() {
   const [ytChatHistory, setYtChatHistory] = useState<[string, string][]>([]);
   const [isDocsLoaded, setIsDocsLoaded] = useState(false);
 
+  // Resizable Sidebar State
+  const [sidebarWidth, setSidebarWidth] = useState(288);
+  const [isResizing, setIsResizing] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const router = useRouter();
@@ -43,6 +47,33 @@ export default function ChatPage() {
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [ragMessages, ytMessages, activeTab]);
+
+  // Handle Sidebar Resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      let newWidth = e.clientX;
+      if (newWidth < 200) newWidth = 200;
+      if (newWidth > 600) newWidth = 600;
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = 'default';
+    };
+
+    if (isResizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   const startListening = () => {
     if (!('webkitSpeechRecognition' in window) && !('speechRecognition' in window)) {
@@ -212,10 +243,15 @@ export default function ChatPage() {
       <audio ref={audioRef} hidden />
 
       {/* SIDEBAR */}
-      <aside className="w-72 glass flex flex-col p-4 border-r border-zinc-800 shrink-0">
+      <aside
+        className="glass flex flex-col p-4 border-r border-zinc-800 shrink-0 relative group"
+        style={{ width: `${sidebarWidth}px` }}
+      >
         <div className="flex items-center gap-3 mb-10 px-2">
           <div className="w-8 h-8 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-lg shadow-lg shadow-blue-500/20" />
-          <h1 className="text-xl font-bold gradient-text">Query Vault 2.0</h1>
+          <h1 className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">
+            QUERY VAULT 2.0 🚀
+          </h1>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -224,14 +260,14 @@ export default function ChatPage() {
             className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === 'chat' ? 'bg-zinc-800/50 text-white border border-zinc-700' : 'text-zinc-500 hover:text-white hover:bg-zinc-900 border border-transparent'}`}
           >
             <MessageSquare size={20} />
-            <span className="font-medium">RAG Chatbot</span>
+            <span className="font-bold uppercase tracking-wider text-xs">RAG Chatbot 🛡️</span>
           </button>
           <button
             onClick={() => setActiveTab('youtube')}
             className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === 'youtube' ? 'bg-zinc-800/50 text-white border border-zinc-700' : 'text-zinc-500 hover:text-white hover:bg-zinc-900 border border-transparent'}`}
           >
             <Youtube size={20} />
-            <span className="font-medium">YouTube Agent</span>
+            <span className="font-bold uppercase tracking-wider text-xs">YouTube Agent 📺</span>
           </button>
         </nav>
 
@@ -278,19 +314,33 @@ export default function ChatPage() {
             <span>Sign Out</span>
           </button>
         </div>
+
+        {/* Resize Handle */}
+        <div 
+          onMouseDown={() => setIsResizing(true)}
+          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-indigo-500/30 transition-colors z-50 group-hover:block"
+        />
       </aside>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col relative transition-all duration-500">
+      <main className="flex-1 flex flex-col relative transition-all duration-500 overflow-hidden">
         <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 scroll-smooth pb-40">
+          
+          {/* Main Scene Branding */}
+          <div className="flex justify-center mb-8">
+            <div className="px-6 py-2 bg-zinc-900/50 border border-zinc-800 rounded-full flex items-center gap-2">
+                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                <span className="text-[10px] font-black tracking-[0.2em] text-zinc-400 uppercase">Query Vault 2.0 Intelligence</span>
+            </div>
+          </div>
 
           {/* YOUTUBE INPUT BLOCK */}
           {activeTab === 'youtube' && (
             <div className="max-w-4xl mx-auto w-full mb-10 group">
               <div className="glass p-8 rounded-[2.5rem] border border-zinc-800 shadow-2xl relative overflow-hidden group-hover:border-zinc-700 transition-all">
                 <div className="relative z-10">
-                  <h2 className="text-2xl font-bold mb-4 flex items-center gap-3">
-                    <Youtube className="text-rose-500" /> YouTube Agent
+                  <h2 className="text-2xl font-black mb-4 flex items-center gap-3 uppercase tracking-tighter">
+                    <Youtube className="text-rose-500" /> YouTube Agent 📺🤖
                   </h2>
                   <div className="flex gap-3">
                     <input
