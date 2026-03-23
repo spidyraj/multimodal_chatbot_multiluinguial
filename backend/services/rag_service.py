@@ -51,8 +51,7 @@ class RAGService:
             chunks, 
             self.embeddings, 
             index_name=self.index_name,
-            namespace=f"user_{user_id}",
-            pinecone_api_key=os.getenv("PINECONE_API_KEY")
+            namespace=f"user_{user_id}"
         )
         return "Documents processed successfully"
 
@@ -61,8 +60,7 @@ class RAGService:
         vectorstore = PineconeVectorStore.from_existing_index(
             index_name=self.index_name,
             embedding=self.embeddings,
-            namespace=f"user_{user_id}",
-            pinecone_api_key=os.getenv("PINECONE_API_KEY")
+            namespace=f"user_{user_id}"
         )
         
         chain = ConversationalRetrievalChain.from_llm(
