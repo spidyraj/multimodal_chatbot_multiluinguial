@@ -58,26 +58,52 @@ class RAGService:
         return "Documents processed successfully"
 
     def get_response(self, question: str, chat_history: List[tuple], user_id: int, language: str = "English"):
-        # Set system prompt based on language
-        system_prompt = "You are a professional AI Assistant. Reply in English."
+        # Set system prompt
+        system_prompt = f"You are a professional AI Assistant. Reply in {language}."
         if language == "Hindi":
             system_prompt = "आप एक पेशेवर एआई सहायक हैं। कृपया हिंदी में उत्तर दें।"
 
-        # Modern PineconeVectorStore usage
-        vectorstore = PineconeVectorStore.from_existing_index(
-            index_name=self.index_name,
-            embedding=self.embeddings,
-            namespace=f"user_{user_id}"
-        )
-        
-        chain = ConversationalRetrievalChain.from_llm(
-            llm=self.llm,
-            retriever=vectorstore.as_retriever(),
-            return_source_documents=True
-        )
-        
-        response = chain.invoke({"question": f"{system_prompt}\n\nQuery: {question}", "chat_history": chat_history})
-        answer_text = response["answer"]
+        answer_text = ""
+        try:
+            # Check if namespace has documents (simple check or just try RAG)
+            vectorstore = PineconeVectorStore.from_existing_index(
+                index_name=self.index_name,
+                embedding=self.embeddings,
+                namespace=f"user_{user_id}"
+            )
+            
+            # Simple retrieval check
+            docs = vectorstore.similarity_search(question, k=1)
+            
+            if docs:
+                chain = ConversationalRetrievalChain.from_llm(
+                    llm=self.llm,
+                    retriever=vectorstore.as_retriever(),
+                    return_source_documents=True
+                )
+                response = chain.invoke({"question": question, "chat_history": chat_history})
+                answer_text = response.get("answer", "")
+            
+            # Fallback if RAG is empty or returns a "don't know" answer
+            if not answer_text or "does not mention" in answer_text.lower() or "don't know" in answer_text.lower() or "no information" in answer_text.lower():
+                gen_prompt = ChatPromptTemplate.from_messages([
+                    ("system", system_prompt),
+                    ("human", "{question}")
+                ])
+                gen_chain = gen_prompt | self.llm | StrOutputParser()
+                answer_text = gen_chain.invoke({"question": question})
+
+        except Exception as e:
+            print(f"RAG Error (falling back to general): {e}")
+            gen_prompt = ChatPromptTemplate.from_messages([
+                ("system", system_prompt),
+                ("human", "{question}")
+            ])
+            gen_chain = gen_prompt | self.llm | StrOutputParser()
+            answer_text = gen_chain.invoke({"question": question})
+
+        if not answer_text:
+            answer_text = "I'm sorry, I couldn't generate a response."
 
         # Generate TTS Audio
         audio_filename = f"{uuid.uuid4()}.mp3"

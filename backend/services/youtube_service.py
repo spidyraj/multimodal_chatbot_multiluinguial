@@ -34,8 +34,15 @@ class YouTubeService:
             return "Invalid YouTube URL"
 
         try:
-            # Fetch transcript using the more standard get_transcript method
-            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+            # More robust transcript fetching (tries all available languages)
+            try:
+                transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+            except:
+                # Fallback: list all and try to find any available
+                transcripts = YouTubeTranscriptApi.list_transcripts(video_id)
+                transcript_obj = transcripts.find_transcript(['en', 'hi', 'en-US', 'hi-IN'])
+                transcript_list = transcript_obj.fetch()
+            
             # Combine transcript chunks
             transcript_text = ' '.join([chunk['text'] for chunk in transcript_list])
             self.transcript_cache[video_id] = transcript_list # Store original list for RAG
@@ -48,7 +55,7 @@ class YouTubeService:
             summary_chain = summary_prompt | self.llm | StrOutputParser()
             return summary_chain.invoke({"transcript": transcript_text})
         except Exception as e:
-            return f"Error fetching transcript: {str(e)}"
+            return f"Error fetching transcript: {str(e)}. (Note: Some videos have transcripts disabled by the owner)."
 
     def chat(self, video_url: str, question: str, chat_history: list, language: str = "English"):
         video_id = self.extract_video_id(video_url)
@@ -56,14 +63,19 @@ class YouTubeService:
             return {"answer": "Invalid YouTube URL", "audio_url": None}
 
         # Set system prompt
-        system_prompt = "You are a professional AI Assistant. Reply in English."
+        system_prompt = f"You are a professional AI Assistant. Reply in {language}."
         if language == "Hindi":
             system_prompt = "आप एक पेशेवर एआई सहायक हैं। कृपया हिंदी में उत्तर दें।"
 
         try:
-            # We need the transcript to create the vector store for RAG
+            # Fetch transcript if not cached
             if video_id not in self.transcript_cache:
-                transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+                try:
+                    transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+                except:
+                    transcripts = YouTubeTranscriptApi.list_transcripts(video_id)
+                    transcript_obj = transcripts.find_transcript(['en', 'hi', 'en-US', 'hi-IN'])
+                    transcript_list = transcript_obj.fetch()
                 self.transcript_cache[video_id] = transcript_list
             else:
                 transcript_list = self.transcript_cache[video_id]
