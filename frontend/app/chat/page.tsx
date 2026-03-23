@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Youtube, FileUp, Mic, Send, LogOut, Loader2, Globe, Languages, Play, Square, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, Youtube, FileUp, Mic, Send, LogOut, Loader2, Globe, Languages, Square, CheckCircle2 } from 'lucide-react';
 
 type Message = {
   role: 'user' | 'bot';
