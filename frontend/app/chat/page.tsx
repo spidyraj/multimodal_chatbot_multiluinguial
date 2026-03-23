@@ -386,13 +386,14 @@ export default function ChatPage() {
                 <div className="text-lg whitespace-pre-wrap">{msg.content}</div>
 
                 {msg.audioUrl && (
-                  <div className="mt-4 flex justify-end">
-                    <button
-                      onClick={() => { if (audioRef.current) { audioRef.current.src = msg.audioUrl!; audioRef.current.play(); } }}
-                      className="p-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-full transition-all text-zinc-400 hover:text-white"
+                  <div className="mt-4 pt-4 border-t border-zinc-800/50">
+                    <audio 
+                      controls 
+                      className="w-full h-8 accent-indigo-500 rounded-lg opacity-70 hover:opacity-100 transition-opacity" 
+                      src={msg.audioUrl}
                     >
-                      <Play size={16} fill="currentColor" />
-                    </button>
+                      Your browser does not support the audio element.
+                    </audio>
                   </div>
                 )}
               </div>
