@@ -12,7 +12,7 @@ export default function Register() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     // Clean API URL: Remove quotes (start/end) and any trailing slashes
-    let apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
       .trim()
       .replace(/^['"]|['"]$/g, '')
       .replace(/\/+$/, '');

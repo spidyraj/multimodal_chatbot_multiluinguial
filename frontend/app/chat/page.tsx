@@ -33,7 +33,7 @@ export default function ChatPage() {
 
     try {
       // Clean API URL: Remove quotes (start/end) and any trailing slashes
-      let apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+      const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
         .trim()
         .replace(/^['"]|['"]$/g, '')
         .replace(/\/+$/, '');
@@ -58,7 +58,7 @@ export default function ChatPage() {
     setSummary('');
     try {
         // Clean API URL: Remove quotes (start/end) and any trailing slashes
-        let apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+        const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
           .trim()
           .replace(/^['"]|['"]$/g, '')
           .replace(/\/+$/, '');
