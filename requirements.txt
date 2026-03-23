@@ -1,4 +1,6 @@
 streamlit
+passlib[bcrypt]
+bcrypt==3.2.0
 streamlit-mic-recorder
 langchain-groq<0.3
 gtts
