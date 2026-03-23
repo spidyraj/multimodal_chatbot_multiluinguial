@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Body
 from typing import List
+from models.request_models import ChatRequest
 from sqlalchemy.orm import Session
 from db.session import get_db
 from services.rag_service import RAGService
@@ -27,11 +28,11 @@ async def upload_documents(files: List[UploadFile] = File(...), user_id: int = 1
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/chat")
-async def chat(question: str, chat_history: List[List[str]] = [], user_id: int = 1, language: str = "English"):
+async def chat(request: ChatRequest, user_id: int = 1, language: str = "English"):
     # Convert chat_history list of lists to list of tuples for LangChain
-    history = [tuple(msg) for msg in chat_history]
+    history = [tuple(msg) for msg in request.chat_history]
     try:
-        response = rag_service.get_response(question, history, user_id, language)
+        response = rag_service.get_response(request.question, history, user_id, language)
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

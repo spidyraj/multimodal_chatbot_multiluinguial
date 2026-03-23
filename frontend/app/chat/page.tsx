@@ -150,10 +150,15 @@ export default function ChatPage() {
 
         try {
             const apiUrl = cleanApiUrl();
-            const res = await fetch(`${apiUrl}/youtube/chat?url=${encodeURIComponent(youtubeUrl)}&question=${encodeURIComponent(input)}&language=${language}`, {
+            const res = await fetch(`${apiUrl}/youtube/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(ytChatHistory)
+                body: JSON.stringify({
+                    url: youtubeUrl,
+                    question: input,
+                    chat_history: ytChatHistory,
+                    language: language
+                })
             });
             const data = await res.json();
             const botMsg: Message = { 
@@ -181,7 +186,14 @@ export default function ChatPage() {
     setSummary('');
     try {
         const apiUrl = cleanApiUrl();
-        const res = await fetch(`${apiUrl}/youtube/summarize?url=${encodeURIComponent(youtubeUrl)}&language=${language}`, { method: 'POST' });
+        const res = await fetch(`${apiUrl}/youtube/summarize`, { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                url: youtubeUrl,
+                language: language
+            })
+        });
         const data = await res.json();
         setSummary(data.summary || "No summary provided.");
         setYtMessages(prev => [...prev, { role: 'bot', content: `🎬 Summary Generated for: ${youtubeUrl}\n\n${data.summary}` }]);
