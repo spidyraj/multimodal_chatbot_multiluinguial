@@ -60,6 +60,7 @@ class YouTubeService:
             'format': 'm4a/bestaudio/best',
             'outtmpl': audio_path,
             'quiet': True,
+            'extractor_args': {'youtube': ['player_client=android']},
         }
         
         try:
