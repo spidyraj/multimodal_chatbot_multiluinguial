@@ -8,14 +8,15 @@ load_dotenv()
 app = FastAPI(title="Query Vault 2.0 API", version="1.0.0")
 
 # CORS Configuration
+frontend_url = os.getenv("FRONTEND_URL", "*")
 origins = [
-    "http://localhost:3000", # Next.js default porta
-    "https://your-frontend-domain.render.com", # Placeholder
+    "http://localhost:3000", # Next.js local
+    frontend_url,             # Production frontend
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For development, we allow all. Adjust for production.
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
