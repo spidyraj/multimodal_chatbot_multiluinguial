@@ -29,15 +29,12 @@ class YouTubeService:
         return None
 
     def _fetch_transcript(self, video_id: str) -> list:
+        from youtube_transcript_api import YouTubeTranscriptApi
+        youtube_api = YouTubeTranscriptApi()
         try:
-            return YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'en-US', 'hi', 'hi-IN'])
+            return youtube_api.fetch(video_id, ['en', 'hi', 'en-US', 'hi-IN'])
         except:
-            try:
-                return YouTubeTranscriptApi.get_transcript(video_id)
-            except Exception:
-                # If standard fetch fails, try the absolute module default
-                from youtube_transcript_api import YouTubeTranscriptApi as YT
-                return YT.get_transcript(video_id)
+            return youtube_api.fetch(video_id)
 
     def get_summary(self, video_url: str, language: str = "English") -> str:
         video_id = self.extract_video_id(video_url)
@@ -49,7 +46,7 @@ class YouTubeService:
             transcript_list = self._fetch_transcript(video_id)
             
             # Combine transcript chunks
-            transcript_text = ' '.join([chunk['text'] for chunk in transcript_list])
+            transcript_text = ' '.join([chunk.text for chunk in transcript_list])
             self.transcript_cache[video_id] = transcript_list # Store original list for RAG
             
             summary_prompt = ChatPromptTemplate.from_messages([
@@ -134,4 +131,13 @@ class YouTubeService:
             }
 
         except Exception as e:
-            return {"answer": f"Error fetching or processing transcript. The video might not have captions available. (Details: {str(e)})", "audio_url": None}
+            error_msg = str(e)
+            if "Could not retrieve a transcript" in error_msg:
+                user_msg = "Error: This video doesn't have available transcripts. This could be because:\n• The video has no closed captions\n• The video is private or restricted\n• The video has been removed\n\nPlease try a different YouTube video that has closed captions enabled."
+            elif "InvalidVideoId" in error_msg:
+                user_msg = "Error: Invalid YouTube video ID. Please check the URL and try again."
+            elif "VideoUnavailable" in error_msg:
+                user_msg = "Error: This video is not available or has been removed."
+            else:
+                user_msg = f"Error processing video: {str(e)}"
+            return {"answer": user_msg, "audio_url": None}
