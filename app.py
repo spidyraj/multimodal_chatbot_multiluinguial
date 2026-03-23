@@ -63,8 +63,9 @@ st.markdown("""
     .chat-container {
         display: flex;
         flex-direction: column;
-        gap: 25px;
+        gap: 20px;
         margin-bottom: 30px;
+        padding: 0 10px;
         padding: 0 10px;
     }
     .chat-bubble {
@@ -75,6 +76,7 @@ st.markdown("""
         font-size: 16px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         word-wrap: break-word;
+        word-wrap: break-word;
         margin: 8px 0;
     }
     .chat-bubble.user {
@@ -83,6 +85,7 @@ st.markdown("""
         border-bottom-left-radius: 4px;
         border-bottom-right-radius: 20px;
         color: #f3e8ff;
+        margin-right: auto;
         margin-right: auto;
         margin-left: 0;
     }
@@ -93,6 +96,7 @@ st.markdown("""
         border-bottom-right-radius: 4px;
         border-bottom-left-radius: 20px;
         color: #e4e4e7;
+        margin-left: auto;
         margin-left: auto;
         margin-right: 0;
     }
@@ -388,6 +392,7 @@ if page == "💬 RAG Chatbot":
             
         st.rerun()
 
+
 elif page == "📹 YouTube Summarizer":
     # --- YOUTUBE SUMMARIZER PAGE ---
     st.markdown("<div class='query-header'>", unsafe_allow_html=True)
@@ -507,8 +512,7 @@ elif page == "📹 YouTube Summarizer":
         
         try:
             # Get transcript
-            youtube_api = YouTubeTranscriptApi()
-            transcript_list = youtube_api.fetch(video_id, ['en'])
+            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
             
             # Combine transcript chunks
             transcript_text = ' '.join([chunk.text for chunk in transcript_list])
