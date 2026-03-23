@@ -17,16 +17,23 @@ def startup_event():
     print("Database tables initialized!")
 
 # CORS Configuration
-frontend_url = os.getenv("FRONTEND_URL", "*")
+frontend_url = os.getenv("FRONTEND_URL", "").strip().replace("'", "").replace('"', "")
+if frontend_url.endswith("/"):
+    frontend_url = frontend_url[:-1]
+
 origins = [
-    "http://localhost:3000", # Next.js local
-    frontend_url,             # Production frontend
+    "http://localhost:3000",
+    "http://localhost:8000",
 ]
+if frontend_url:
+    origins.append(frontend_url)
+else:
+    origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
+    allow_credentials=False, # We use JWT in headers, no cookies needed
     allow_methods=["*"],
     allow_headers=["*"],
 )
