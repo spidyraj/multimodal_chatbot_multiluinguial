@@ -8,9 +8,13 @@ import os
 router = APIRouter()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "queryvault")
 
-rag_service = RAGService(groq_api_key=GROQ_API_KEY, pinecone_api_key=PINECONE_API_KEY)
+rag_service = RAGService(
+    groq_api_key=GROQ_API_KEY, 
+    pinecone_api_key=PINECONE_API_KEY,
+    index_name=PINECONE_INDEX_NAME
+)
 
 @router.post("/upload")
 async def upload_documents(files: List[UploadFile] = File(...), user_id: int = 1):

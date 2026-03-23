@@ -11,7 +11,7 @@ langchain<0.4
 langchain-groq<0.3
 langchain-community<0.4
 langchain-core<0.4
-langchain-text-splitters<0.4
+langchain-pinecone
 youtube-transcript-api
 gtts
 requests
