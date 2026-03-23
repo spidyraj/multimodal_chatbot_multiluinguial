@@ -49,6 +49,7 @@ export default function ChatPage() {
       alert("Speech recognition is not supported in this browser.");
       return;
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).speechRecognition;
     const recognition = new SpeechRecognition();
     recognition.lang = language === 'Hindi' ? 'hi-IN' : 'en-US';
@@ -57,6 +58,7 @@ export default function ChatPage() {
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
     recognition.onerror = () => setIsListening(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setInput(transcript);
