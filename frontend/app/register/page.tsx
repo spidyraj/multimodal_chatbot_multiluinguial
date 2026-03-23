@@ -11,16 +11,27 @@ export default function Register() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const res = await fetch(`${apiUrl}/auth/register`, {
+    // Clean API URL: Remove quotes if any and trailing slashes
+    let apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/['"]/g, '');
+    if (apiUrl.endsWith('/')) apiUrl = apiUrl.slice(0, -1);
+
+    // Backend expects query parameters for register
+    const queryParams = new URLSearchParams({
+      username,
+      email,
+      password
+    }).toString();
+
+    const res = await fetch(`${apiUrl}/auth/register?${queryParams}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password }),
     });
+    
     if (res.ok) {
       router.push('/login');
     } else {
-      alert("Registration failed. Try again.");
+      const errorData = await res.json().catch(() => ({}));
+      alert(errorData.detail || "Registration failed. Try again.");
     }
   };
 

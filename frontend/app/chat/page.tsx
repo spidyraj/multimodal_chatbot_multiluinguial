@@ -32,7 +32,10 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      // Clean API URL: Remove quotes if any and trailing slashes
+      let apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/['"]/g, '');
+      if (apiUrl.endsWith('/')) apiUrl = apiUrl.slice(0, -1);
+
       const res = await fetch(`${apiUrl}/docs/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -52,7 +55,10 @@ export default function ChatPage() {
     setIsLoading(true);
     setSummary('');
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        // Clean API URL: Remove quotes if any and trailing slashes
+        let apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/['"]/g, '');
+        if (apiUrl.endsWith('/')) apiUrl = apiUrl.slice(0, -1);
+
         const res = await fetch(`${apiUrl}/youtube/summarize?url=${encodeURIComponent(youtubeUrl)}`, { method: 'POST' });
         const data = await res.json();
         setSummary(data.summary || data.detail);

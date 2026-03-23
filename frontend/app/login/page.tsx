@@ -15,7 +15,10 @@ export default function Login() {
     formData.append('username', username);
     formData.append('password', password);
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    // Clean API URL: Remove quotes if any and trailing slashes
+    let apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/['"]/g, '');
+    if (apiUrl.endsWith('/')) apiUrl = apiUrl.slice(0, -1);
+
     const res = await fetch(`${apiUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
