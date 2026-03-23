@@ -45,6 +45,7 @@ export default function ChatPage() {
       return;
     }
 
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).speechRecognition;
     const recognition = new SpeechRecognition();
     
@@ -61,6 +62,7 @@ export default function ChatPage() {
       if (activeTab === 'chat') setInput(transcript);
       else setYtInput(transcript);
     };
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     recognition.start();
   };
