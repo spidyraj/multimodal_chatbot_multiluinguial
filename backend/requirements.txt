@@ -17,6 +17,7 @@ requests
 python-dotenv
 PyPDF2
 python-docx
+--extra-index-url https://download.pytorch.org/whl/cpu
 transformers
 torch
 sentence-transformers
