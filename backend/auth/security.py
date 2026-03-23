@@ -5,7 +5,8 @@ from jose import jwt
 from passlib.context import CryptContext
 
 # Security Configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-super-secret-key-change-me")
+# The code checks for JWT_SECRET_KEY first, then falls back to SECRET_KEY
+SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY", "your-super-secret-key-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 1 week
 
