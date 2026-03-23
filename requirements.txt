@@ -1,0 +1,15 @@
+streamlit
+streamlit-mic-recorder
+langchain-groq<0.3
+gtts
+langchain<0.4
+PyPDF2
+python-docx
+transformers
+torch
+sentence-transformers
+langchain-community<0.4
+langchain-core<0.4
+langchain-text-splitters<0.4
+faiss-cpu
+youtube-transcript-api

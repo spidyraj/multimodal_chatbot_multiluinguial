@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+pinecone-client
+langchain
+langchain-groq
+langchain-community
+youtube-transcript-api
+gtts
+requests
+python-dotenv
+PyPDF2
+python-docx
