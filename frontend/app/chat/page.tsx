@@ -387,6 +387,12 @@ export default function ChatPage() {
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
         }
+        /* Very mild background shading inside bubble */
+        @keyframes mildInnerShade {
+          0%   { background-position: 0% 50%; }
+          50%  { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
         .heading-shimmer {
           background: linear-gradient(90deg, #e0e7ff, #67e8f9, #818cf8, #c4b5fd, #67e8f9, #e0e7ff);
           background-size: 300% auto;
@@ -396,39 +402,46 @@ export default function ChatPage() {
           animation: shimmerHeading 4s linear infinite;
           filter: drop-shadow(0 0 10px rgba(165,243,252,0.6));
         }
+        /* Wrapper: just 2px padding = the visible neon border strip */
         .neon-orbit-wrap {
           position: relative;
           border-radius: 2rem;
           padding: 2px;
           overflow: hidden;
         }
+        /* Spinning conic gradient fills the 2px gap only (inner div is fully opaque) */
         .neon-orbit-wrap .neon-spinner {
           position: absolute;
           inset: -100%;
           width: 300%;
           height: 300%;
-          animation: spinBorder 3s linear infinite;
+          animation: spinBorder 2.5s linear infinite;
           border-radius: 50%;
         }
         .neon-orbit-user .neon-spinner {
-          background: conic-gradient(transparent 0deg, #818cf8 60deg, #a78bfa 120deg, #c4b5fd 180deg, transparent 240deg);
+          background: conic-gradient(transparent 0deg, #818cf8 40deg, #a78bfa 80deg, #c4b5fd 120deg, transparent 180deg);
         }
         .neon-orbit-bot .neon-spinner {
-          background: conic-gradient(transparent 0deg, #06b6d4 60deg, #22d3ee 120deg, #67e8f9 180deg, transparent 240deg);
+          background: conic-gradient(transparent 0deg, #06b6d4 40deg, #22d3ee 80deg, #67e8f9 120deg, transparent 180deg);
         }
+        /* Fully opaque inner backgrounds — neon cannot bleed through */
         .neon-orbit-inner-user {
           position: relative;
           z-index: 1;
           border-radius: calc(2rem - 2px);
-          background: linear-gradient(135deg, rgba(49,46,129,0.5), rgba(76,29,149,0.4));
-          border: 1px solid rgba(129,140,248,0.2);
+          /* Solid base + very mild shimmer */
+          background: linear-gradient(135deg, #1a1040 0%, #1e1060 40%, #1a1040 100%);
+          background-size: 200% 200%;
+          animation: mildInnerShade 8s ease infinite;
         }
         .neon-orbit-inner-bot {
           position: relative;
           z-index: 1;
           border-radius: calc(2rem - 2px);
-          background: rgba(24,24,27,0.85);
-          border: 1px solid rgba(34,211,238,0.12);
+          /* Almost black base + very mild cyan tint shimmer */
+          background: linear-gradient(135deg, #0f1117 0%, #0f1a1f 40%, #0f1117 100%);
+          background-size: 200% 200%;
+          animation: mildInnerShade 8s ease infinite;
         }
       `}</style>
 
@@ -441,8 +454,7 @@ export default function ChatPage() {
         <div className="flex items-center gap-3 mb-6 px-2">
           <div className="w-10 h-10 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center text-xl">🔐</div>
           <div>
-            <h1 className="text-2xl font-black tracking-tighter leading-none"
-              style={{ textShadow: '0 0 8px #818cf8, 0 2px 0 #312e81, 0 4px 0 #1e1b4b, 2px 6px 12px rgba(99,102,241,0.4)' }}
+            <h1 className="heading-shimmer text-2xl font-black tracking-tighter leading-none"
             >QUERY VAULT</h1>
           </div>
         </div>
