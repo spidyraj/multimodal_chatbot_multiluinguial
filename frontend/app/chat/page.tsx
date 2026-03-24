@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, FileUp, Mic, Send, LogOut, Loader2, Globe, Languages, Square, CheckCircle2, Headphones, UploadCloud, RefreshCw, PlusCircle, Download, Share2, Trash2, MessageCircle, Mail } from 'lucide-react';
+import { MessageSquare, FileUp, Mic, Send, LogOut, Loader2, Globe, Languages, Square, CheckCircle2, Headphones, UploadCloud, RefreshCw, PlusCircle, Download, Share2, Trash2, MessageCircle, Mail, Copy } from 'lucide-react';
 
 type Message = {
   role: 'user' | 'bot';
@@ -269,6 +269,18 @@ export default function ChatPage() {
   };
 
   const currentMessages = activeTab === 'chat' ? ragMessages : audioMessages;
+  const setCurrentMessages = activeTab === 'chat' ? setRagMessages : setAudioMessages;
+
+  /** Delete a user message at `idx` and the immediately following bot reply */
+  const deletePair = (idx: number) => {
+    setCurrentMessages(prev => {
+      const next = [...prev];
+      // Remove bot reply first (if it follows), then the user msg
+      if (next[idx + 1]?.role === 'bot') next.splice(idx, 2);
+      else next.splice(idx, 1);
+      return next;
+    });
+  };
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
 
@@ -494,7 +506,7 @@ export default function ChatPage() {
 
           {/* CHAT MESSAGES */}
           {currentMessages.map((msg, idx) => (
-            <div key={idx} className={`flex max-w-4xl mx-auto w-full ${msg.role === 'user' ? 'justify-start' : 'justify-end animate-in fade-in slide-in-from-bottom-2 duration-300'}`}>
+            <div key={idx} className={`group flex flex-col max-w-4xl mx-auto w-full gap-1 ${msg.role === 'user' ? 'items-start' : 'items-end animate-in fade-in slide-in-from-bottom-2 duration-300'}`}>
               <div className={`max-w-[80%] p-6 rounded-[2rem] shadow-2xl leading-relaxed ${msg.role === 'user'
                 ? 'bg-gradient-to-br from-indigo-950/40 to-purple-950/40 border border-indigo-500/20 text-indigo-50 rounded-bl-none'
                 : 'bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-br-none'
@@ -509,6 +521,45 @@ export default function ChatPage() {
                       Your browser does not support the audio element.
                     </audio>
                   </div>
+                )}
+              </div>
+
+              {/* PER-BUBBLE ACTION ROW — appears on hover */}
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2">
+                {msg.role === 'bot' ? (
+                  // Bot bubble actions: Copy + WhatsApp + Gmail
+                  <>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(msg.content)}
+                      title="Copy"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-600 transition-all text-[11px] font-semibold"
+                    >
+                      <Copy size={11} /> Copy
+                    </button>
+                    <button
+                      onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(msg.content.slice(0, 1500))}`, '_blank')}
+                      title="Share on WhatsApp"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-emerald-500 hover:text-emerald-300 hover:border-emerald-700 transition-all text-[11px] font-semibold"
+                    >
+                      <MessageCircle size={11} /> WhatsApp
+                    </button>
+                    <button
+                      onClick={() => window.open(`https://mail.google.com/mail/?view=cm&su=${encodeURIComponent('AI Response')}&body=${encodeURIComponent(msg.content.slice(0, 3000))}`, '_blank')}
+                      title="Share via Gmail"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-rose-500 hover:text-rose-300 hover:border-rose-700 transition-all text-[11px] font-semibold"
+                    >
+                      <Mail size={11} /> Gmail
+                    </button>
+                  </>
+                ) : (
+                  // User bubble actions: Delete pair
+                  <button
+                    onClick={() => deletePair(idx)}
+                    title="Delete this Q&A pair"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-red-900/40 text-red-500 hover:text-red-300 hover:border-red-700 transition-all text-[11px] font-semibold"
+                  >
+                    <Trash2 size={11} /> Delete
+                  </button>
                 )}
               </div>
             </div>
