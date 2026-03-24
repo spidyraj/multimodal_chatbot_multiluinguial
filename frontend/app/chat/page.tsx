@@ -38,8 +38,18 @@ export default function ChatPage() {
   const [isResizing, setIsResizing] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const router = useRouter();
+
+  // Converts **bold** markdown to <strong> tags
+  const renderText = (text: string) => {
+    const parts = text.split(/(\*\*[^*]+\*\*)/);
+    return parts.map((part, i) =>
+      part.startsWith('**') && part.endsWith('**')
+        ? <strong key={i} className="font-bold text-white">{part.slice(2, -2)}</strong>
+        : <span key={i}>{part}</span>
+    );
+  };
+
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -166,12 +176,9 @@ export default function ChatPage() {
           body: JSON.stringify({ question: input, chat_history: ragMessages.filter(m => m.role !== 'bot' || !m.content.includes("✅")).map(m => [m.role === 'user' ? 'human' : 'assistant', m.content]) })
         });
         const data = await res.json();
-        const botMsg: Message = { role: 'bot', content: data.answer || "No response", audioUrl: data.audioUrl ? `${cleanApiUrl()}${data.audioUrl}` : undefined };
+        const botMsg: Message = { role: 'bot', content: data.answer || "No response", audioUrl: data.audio_url ? `${cleanApiUrl()}${data.audio_url}` : data.audioUrl ? `${cleanApiUrl()}${data.audioUrl}` : undefined };
         setRagMessages(prev => [...prev, botMsg]);
-        if (botMsg.audioUrl && audioRef.current) {
-          audioRef.current.src = botMsg.audioUrl;
-          audioRef.current.play().catch(() => {});
-        }
+        // No autoplay — user presses play manually
       } catch {
         setRagMessages(prev => [...prev, { role: 'bot', content: "Error connecting to backend." }]);
       } finally { setIsLoading(false); }
@@ -196,10 +203,7 @@ export default function ChatPage() {
         const botMsg: Message = { role: 'bot', content: data.answer || "No response", audioUrl: data.audio_url ? `${cleanApiUrl()}${data.audio_url}` : undefined };
         setAudioMessages(prev => [...prev, botMsg]);
         setAudioChatHistory(prev => [...prev, [input, data.answer]]);
-        if (botMsg.audioUrl && audioRef.current) {
-          audioRef.current.src = botMsg.audioUrl;
-          audioRef.current.play().catch(() => {});
-        }
+        // No autoplay — user presses play manually
       } catch {
         setAudioMessages(prev => [...prev, { role: 'bot', content: "Error in Audio chat." }]);
       } finally { setIsLoading(false); }
@@ -210,7 +214,6 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-black text-white font-sans overflow-hidden">
-      <audio ref={audioRef} hidden />
 
       {/* SIDEBAR */}
       <aside
@@ -335,7 +338,7 @@ export default function ChatPage() {
                 <div className={`text-[10px] uppercase tracking-[0.3em] mb-4 font-black flex items-center gap-2 ${msg.role === 'user' ? 'text-indigo-400' : 'text-zinc-500'}`}>
                   {msg.role === 'user' ? '👤 Sender' : '🤖 Intelligence'}
                 </div>
-                <div className="text-lg whitespace-pre-wrap">{msg.content}</div>
+                <div className="text-lg whitespace-pre-wrap">{renderText(msg.content)}</div>
                 {msg.audioUrl && (
                   <div className="mt-4 pt-4 border-t border-zinc-800/50">
                     <audio controls className="w-full h-8 accent-indigo-500 rounded-lg opacity-70 hover:opacity-100 transition-opacity" src={msg.audioUrl}>
