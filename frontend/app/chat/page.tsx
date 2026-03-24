@@ -30,7 +30,6 @@ export default function ChatPage() {
   // Audio Agent state
   const [audioSessionId, setAudioSessionId] = useState<string | null>(null);
   const [audioSummary, setAudioSummary] = useState('');
-  const [audioTranscript, setAudioTranscript] = useState('');
   const [audioChatHistory, setAudioChatHistory] = useState<[string, string][]>([]);
   const [isAudioProcessing, setIsAudioProcessing] = useState(false);
 
@@ -124,7 +123,6 @@ export default function ChatPage() {
     const file = e.target.files[0];
     setIsAudioProcessing(true);
     setAudioSummary('');
-    setAudioTranscript('');
     setAudioSessionId(null);
     setAudioMessages(prev => [...prev, { role: 'bot', content: `🔄 Processing "${file.name}"... Transcribing with Whisper AI. This may take a moment...` }]);
 
@@ -141,7 +139,6 @@ export default function ChatPage() {
       const data = await res.json();
       setAudioSessionId(data.session_id);
       setAudioSummary(data.summary);
-      setAudioTranscript(data.transcript);
       setAudioMessages(prev => [...prev, {
         role: 'bot',
         content: `✅ Audio Processed: **${file.name}**\n\n📋 **Summary:**\n${data.summary}\n\nYou can now chat with the audio content below!`
