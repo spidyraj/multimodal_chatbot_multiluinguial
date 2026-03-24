@@ -134,7 +134,6 @@ export default function ChatPage() {
     setIsAudioProcessing(true);
     setAudioSummary('');
     setAudioSessionId(null);
-    setAudioMessages(prev => [...prev, { role: 'bot', content: `🔄 Processing "${file.name}"... Transcribing with Whisper AI. This may take a moment...` }]);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -149,10 +148,7 @@ export default function ChatPage() {
       const data = await res.json();
       setAudioSessionId(data.session_id);
       setAudioSummary(data.summary);
-      setAudioMessages(prev => [...prev, {
-        role: 'bot',
-        content: `✅ Audio Processed: **${file.name}**\n\n📋 **Summary:**\n${data.summary}\n\nYou can now chat with the audio content below!`
-      }]);
+      // Summary is shown in the card above — no chat bubble needed
     } catch (err) {
       setAudioMessages(prev => [...prev, { role: 'bot', content: `❌ Error: ${err instanceof Error ? err.message : "Unknown error"}` }]);
     } finally {
@@ -257,19 +253,6 @@ export default function ChatPage() {
             </div>
           </div>
 
-          {/* Doc Upload (only for RAG tab) */}
-          {activeTab === 'chat' && (
-            <div className="relative">
-              <label className={`flex flex-col items-center justify-center p-5 border-2 border-dashed rounded-3xl cursor-pointer transition-all bg-zinc-900/30 group ${isDocsLoaded ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-zinc-800 hover:border-zinc-700'}`}>
-                {isUploading ? <Loader2 className="animate-spin text-purple-400 mb-2" /> : isDocsLoaded ? <CheckCircle2 className="text-emerald-500 mb-2" /> : <FileUp className="text-zinc-500 mb-2 group-hover:text-purple-400" />}
-                <span className="text-sm text-zinc-400 font-medium">
-                  {isUploading ? "Indexing..." : isDocsLoaded ? "Docs Loaded ✅" : "Upload Docs"}
-                </span>
-                <span className="text-[10px] text-zinc-600 mt-1">PDF, DOCX, TXT</span>
-                <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" multiple onChange={handleFileUpload} disabled={isUploading} />
-              </label>
-            </div>
-          )}
 
           <button
             onClick={() => { localStorage.removeItem('token'); router.push('/login'); }}
@@ -297,6 +280,28 @@ export default function ChatPage() {
               <span className="text-[10px] font-black tracking-[0.2em] text-zinc-400 uppercase">Query Vault 2.0 Intelligence</span>
             </div>
           </div>
+
+          {/* DOC UPLOAD BLOCK — RAG tab */}
+          {activeTab === 'chat' && (
+            <div className="max-w-4xl mx-auto w-full mb-10">
+              <div className="glass p-8 rounded-[2.5rem] border border-zinc-800 shadow-2xl">
+                <h2 className="text-2xl font-black mb-2 flex items-center gap-3 uppercase tracking-tighter">
+                  <FileUp className="text-purple-400" /> RAG Chatbot 🛡️
+                </h2>
+                <p className="text-zinc-500 text-sm mb-6">Upload your documents — they will be indexed and you can chat with them below.</p>
+                <label className={`flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${isUploading ? 'border-purple-500 bg-purple-500/5' : isDocsLoaded ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-zinc-700 hover:border-purple-500/50 bg-zinc-900/30'}`}>
+                  {isUploading ? (
+                    <><Loader2 className="animate-spin text-purple-400 mb-3" size={32} /><span className="text-purple-300 font-semibold">Indexing documents...</span></>
+                  ) : isDocsLoaded ? (
+                    <><CheckCircle2 className="text-emerald-400 mb-3" size={32} /><span className="text-emerald-300 font-semibold">Docs Loaded! Upload more</span></>
+                  ) : (
+                    <><UploadCloud className="text-zinc-500 mb-3" size={32} /><span className="text-zinc-300 font-semibold">Click to upload documents</span><span className="text-zinc-600 text-xs mt-1">PDF, DOCX, TXT</span></>
+                  )}
+                  <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" multiple onChange={handleFileUpload} disabled={isUploading} />
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* AUDIO UPLOAD BLOCK */}
           {activeTab === 'audio' && (
