@@ -262,6 +262,7 @@ export default function ChatPage() {
     setIsAudioProcessing(true);
     setAudioSessionId(null);
     setAudioSegments([]);
+    setAudioMessages([]); // clear previous summary and chat on new upload
 
     const formData = new FormData();
     formData.append("file", file);
