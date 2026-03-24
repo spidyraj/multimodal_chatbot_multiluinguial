@@ -45,19 +45,31 @@ class AudioService:
         ]
         return {"text": result.get("text", "").strip(), "segments": segments}
 
-    def _build_vector_store(self, transcript: str) -> FAISS:
-        """Chunk transcript and build an in-memory FAISS store."""
-        chunk_size = 800
-        overlap = 80
-        words = transcript.split()
-        chunks = []
-        i = 0
-        while i < len(words):
-            chunk = " ".join(words[i:i + chunk_size])
-            chunks.append(chunk)
-            i += chunk_size - overlap
+    def _build_vector_store(self, transcript: str, segments: list = None) -> FAISS:
+        """Build FAISS from segments (with timestamps) or fallback to word-chunked transcript."""
+        documents = []
 
-        documents = [Document(page_content=c) for c in chunks]
+        if segments:
+            # Group adjacent segments into batches of 5 for richer context
+            batch_size = 5
+            for i in range(0, len(segments), batch_size):
+                batch = segments[i:i + batch_size]
+                start = batch[0]['start']
+                mins = int(start // 60)
+                secs = int(start % 60)
+                timestamp = f"[{mins:02d}:{secs:02d}]"
+                text = " ".join(s['text'] for s in batch)
+                documents.append(Document(page_content=f"{timestamp} {text}"))
+        else:
+            # Fallback: chunk full transcript by words
+            chunk_size = 600
+            overlap = 60
+            words = transcript.split()
+            i = 0
+            while i < len(words):
+                documents.append(Document(page_content=" ".join(words[i:i + chunk_size])))
+                i += chunk_size - overlap
+
         return FAISS.from_documents(documents, self.embeddings)
 
     def process_audio(self, file_bytes: bytes, filename: str, language: str = "English") -> dict:
@@ -76,7 +88,7 @@ class AudioService:
         summary_chain = summary_prompt | self.llm | StrOutputParser()
         summary = summary_chain.invoke({"transcript": transcript})
 
-        vector_store = self._build_vector_store(transcript)
+        vector_store = self._build_vector_store(transcript, segments)
         session_id = str(uuid.uuid4())
         self.sessions[session_id] = {
             "transcript": transcript,
@@ -104,7 +116,7 @@ Question: {{question}}
         prompt = ChatPromptTemplate.from_template(template)
         chain = ConversationalRetrievalChain.from_llm(
             llm=self.llm,
-            retriever=vector_store.as_retriever(search_kwargs={"k": 4}),
+            retriever=vector_store.as_retriever(search_kwargs={"k": 6}),
             combine_docs_chain_kwargs={"prompt": prompt}
         )
         history = [tuple(msg) for msg in chat_history]
