@@ -377,6 +377,60 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-black text-white font-sans overflow-hidden">
+      <style>{`
+        @keyframes shimmerHeading {
+          0%   { background-position: 0% 50%; }
+          50%  { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes spinBorder {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+        .heading-shimmer {
+          background: linear-gradient(90deg, #e0e7ff, #67e8f9, #818cf8, #c4b5fd, #67e8f9, #e0e7ff);
+          background-size: 300% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: shimmerHeading 4s linear infinite;
+          filter: drop-shadow(0 0 10px rgba(165,243,252,0.6));
+        }
+        .neon-orbit-wrap {
+          position: relative;
+          border-radius: 2rem;
+          padding: 2px;
+          overflow: hidden;
+        }
+        .neon-orbit-wrap .neon-spinner {
+          position: absolute;
+          inset: -100%;
+          width: 300%;
+          height: 300%;
+          animation: spinBorder 3s linear infinite;
+          border-radius: 50%;
+        }
+        .neon-orbit-user .neon-spinner {
+          background: conic-gradient(transparent 0deg, #818cf8 60deg, #a78bfa 120deg, #c4b5fd 180deg, transparent 240deg);
+        }
+        .neon-orbit-bot .neon-spinner {
+          background: conic-gradient(transparent 0deg, #06b6d4 60deg, #22d3ee 120deg, #67e8f9 180deg, transparent 240deg);
+        }
+        .neon-orbit-inner-user {
+          position: relative;
+          z-index: 1;
+          border-radius: calc(2rem - 2px);
+          background: linear-gradient(135deg, rgba(49,46,129,0.5), rgba(76,29,149,0.4));
+          border: 1px solid rgba(129,140,248,0.2);
+        }
+        .neon-orbit-inner-bot {
+          position: relative;
+          z-index: 1;
+          border-radius: calc(2rem - 2px);
+          background: rgba(24,24,27,0.85);
+          border: 1px solid rgba(34,211,238,0.12);
+        }
+      `}</style>
 
       {/* SIDEBAR */}
       <aside
@@ -450,15 +504,7 @@ export default function ChatPage() {
           style={{ borderColor: 'rgba(99,102,241,0.4)', boxShadow: '0 1px 20px rgba(99,102,241,0.15)' }}
         >
           <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
-          <h2 className="text-3xl font-black tracking-tight flex-1"
-            style={{
-              background: 'linear-gradient(90deg, #e0e7ff 0%, #a5f3fc 40%, #818cf8 80%, #c4b5fd 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              textShadow: 'none',
-              filter: 'drop-shadow(0 0 8px rgba(165,243,252,0.5))'
-            }}
-          >
+          <h2 className="heading-shimmer text-3xl font-black tracking-tight flex-1">
             {activeTab === 'chat' ? '📄 Query Vault Document Chat' : '🎙️ Query Vault Audio Chat'}
           </h2>
 
@@ -557,27 +603,29 @@ export default function ChatPage() {
           {/* CHAT MESSAGES */}
           {currentMessages.map((msg, idx) => (
             <div key={idx} className={`group flex flex-col max-w-4xl mx-auto w-full gap-1 ${msg.role === 'user' ? 'items-start' : 'items-end animate-in fade-in slide-in-from-bottom-2 duration-300'}`}>
-              <div className={`max-w-[80%] p-6 rounded-[2rem] shadow-2xl leading-relaxed transition-all ${
-                msg.role === 'user'
-                  ? 'bg-gradient-to-br from-indigo-950/50 to-purple-950/50 text-indigo-50 rounded-bl-none'
-                  : 'bg-zinc-900/80 text-zinc-200 rounded-br-none'
-              }`}
-                style={msg.role === 'user'
-                  ? { border: '1px solid rgba(129,140,248,0.4)', boxShadow: '0 0 16px rgba(129,140,248,0.2), inset 0 1px 0 rgba(255,255,255,0.05)' }
-                  : { border: '1px solid rgba(34,211,238,0.25)', boxShadow: '0 0 18px rgba(34,211,238,0.12), inset 0 1px 0 rgba(255,255,255,0.03)' }
-                }
-              >
-                <div className={`text-[10px] uppercase tracking-[0.3em] mb-3 font-black flex items-center gap-2 ${msg.role === 'user' ? 'text-indigo-400' : 'text-zinc-500'}`}>
-                  {msg.role === 'user' ? `👤 ${username || 'You'}` : '🤖 Intelligence'}
-                </div>
-                <div className="text-base leading-relaxed">{renderText(msg.content)}</div>
-                {msg.audioUrl && (
-                  <div className="mt-4 pt-4 border-t border-zinc-800/50">
-                    <audio controls className="w-full h-8 accent-indigo-500 rounded-lg opacity-70 hover:opacity-100 transition-opacity" src={msg.audioUrl}>
-                      Your browser does not support the audio element.
-                    </audio>
+
+              {/* Neon orbit wrapper */}
+              <div className={`neon-orbit-wrap max-w-[80%] shadow-2xl ${
+                msg.role === 'user' ? 'neon-orbit-user rounded-bl-none' : 'neon-orbit-bot rounded-br-none'
+              }`}>
+                <div className="neon-spinner" />
+                <div className={`p-6 leading-relaxed ${
+                  msg.role === 'user'
+                    ? 'neon-orbit-inner-user text-indigo-50 rounded-bl-none'
+                    : 'neon-orbit-inner-bot text-zinc-200 rounded-br-none'
+                }`}>
+                  <div className={`text-[10px] uppercase tracking-[0.3em] mb-3 font-black flex items-center gap-2 ${msg.role === 'user' ? 'text-indigo-400' : 'text-cyan-500'}`}>
+                    {msg.role === 'user' ? `👤 ${username || 'You'}` : '🤖 Intelligence'}
                   </div>
-                )}
+                  <div className="text-base leading-relaxed">{renderText(msg.content)}</div>
+                  {msg.audioUrl && (
+                    <div className="mt-4 pt-4 border-t border-zinc-800/50">
+                      <audio controls className="w-full h-8 accent-indigo-500 rounded-lg opacity-70 hover:opacity-100 transition-opacity" src={msg.audioUrl}>
+                        Your browser does not support the audio element.
+                      </audio>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* PER-BUBBLE ACTION ROW — appears on hover */}
