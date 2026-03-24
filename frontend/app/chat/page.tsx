@@ -92,6 +92,7 @@ export default function ChatPage() {
   const [pendingAudioFile, setPendingAudioFile] = useState<File | null>(null);
   const [showAudioModeModal, setShowAudioModeModal] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
+  const [audioSummary, setAudioSummary] = useState('');
 
   // Scroll refs
   const chatAreaRef = useRef<HTMLDivElement>(null);
@@ -262,6 +263,7 @@ export default function ChatPage() {
     setIsAudioProcessing(true);
     setAudioSessionId(null);
     setAudioSegments([]);
+    setAudioSummary('');
     setAudioMessages([]); // clear previous summary and chat on new upload
 
     const formData = new FormData();
@@ -281,8 +283,8 @@ export default function ChatPage() {
       const data = await res.json();
       setAudioSessionId(data.session_id);
       setAudioSegments(data.segments || []);
-      // Strip any leading 'Summary:' prefix the backend may include to avoid duplication
       const summaryText = (data.summary || '').replace(/^\s*\*?\*?Summary:?\*?\*?\s*/i, '').trim();
+      setAudioSummary(summaryText);
       setAudioMessages(prev => [...prev, {
         role: 'bot',
         content: `✅ Audio transcribed successfully!\n\n📋 **Summary:**\n${summaryText}\n\nYou can now ask questions about the audio content.`
@@ -387,6 +389,37 @@ export default function ChatPage() {
         `<p><b>${m.role === 'user' ? username.toUpperCase() || 'YOU' : 'AI'}:</b><br/>${m.content.replace(/\n/g, '<br/>')}</p><hr/>`
       ).join('')}</body></html>`;
       downloadFile(html, `${label}.doc`, 'application/msword');
+    }
+  };
+
+  const handleDownloadTranscription = (fmt: 'json' | 'doc') => {
+    if (!audioSessionId) return;
+    const filename = `transcription_${audioSessionId.slice(0, 8)}`;
+    
+    if (fmt === 'json') {
+      const data = {
+        summary: audioSummary,
+        transcript: audioSegments.map(s => ({
+          time: `${String(Math.floor(s.start / 60)).padStart(2,'0')}:${String(Math.floor(s.start % 60)).padStart(2,'0')}`,
+          text: s.text
+        }))
+      };
+      downloadFile(JSON.stringify(data, null, 2), `${filename}.json`, 'application/json');
+    } else {
+      const transcriptHtml = audioSegments.map(s => {
+        const ts = `${String(Math.floor(s.start / 60)).padStart(2,'0')}:${String(Math.floor(s.start % 60)).padStart(2,'0')}`;
+        return `<li><span style="color:#06b6d4;font-family:monospace">[${ts}]</span> ${s.text}</li>`;
+      }).join('');
+      
+      const html = `
+        <html><body style="font-family:Arial; line-height:1.6; padding:20px;">
+          <h1 style="color:#818cf8;border-bottom:1px solid #ddd;padding-bottom:10px;">Audio Summary</h1>
+          <p>${audioSummary.replace(/\n/g, '<br/>')}</p>
+          <h1 style="color:#06b6d4;border-bottom:1px solid #ddd;padding-bottom:10px;margin-top:40px;">Full Transcription</h1>
+          <ul style="list-style:none;padding:0;">${transcriptHtml}</ul>
+        </body></html>
+      `;
+      downloadFile(html, `${filename}.doc`, 'application/msword');
     }
   };
 
@@ -675,7 +708,18 @@ export default function ChatPage() {
                     <span className="text-zinc-500 text-xs">{showTranscript ? '▲ Hide' : '▼ Show'}</span>
                   </button>
                   {showTranscript && (
-                    <div className="max-h-64 overflow-y-auto divide-y divide-zinc-800/50">
+                    <div className="bg-zinc-900/60 border-t border-zinc-800">
+                      {/* Download transcription icons inside accordion header strip */}
+                      <div className="flex items-center justify-end gap-3 px-5 py-2 border-b border-zinc-800/50 bg-black/20">
+                        <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Download:</span>
+                        <button onClick={() => handleDownloadTranscription('json')} className="flex items-center gap-1.5 text-[10px] font-bold text-cyan-400 hover:text-cyan-300 transition-colors">
+                          <Download size={12} /> JSON
+                        </button>
+                        <button onClick={() => handleDownloadTranscription('doc')} className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors">
+                          <Download size={12} /> DOC
+                        </button>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto divide-y divide-zinc-800/50">
                       {audioSegments.map((seg, i) => (
                         <div key={i} className="flex gap-3 px-5 py-3 hover:bg-zinc-800/30 transition-colors">
                           <span className="text-[11px] font-mono text-cyan-500 shrink-0 pt-0.5">
@@ -684,10 +728,12 @@ export default function ChatPage() {
                           <span className="text-sm text-zinc-300 leading-relaxed">{seg.text}</span>
                         </div>
                       ))}
+                      </div>
                     </div>
                   )}
                 </div>
               )}
+
             </div>
           )}
 
