@@ -10,12 +10,9 @@ type Message = {
 };
 
 export default function ChatPage() {
-  const [ragMessages, setRagMessages] = useState<Message[]>([
-    { role: 'bot', content: 'WELCOME TO QUERY VAULT 2.0 🚀 | Upload your documents and ask me anything!' }
-  ]);
-  const [audioMessages, setAudioMessages] = useState<Message[]>([
-    { role: 'bot', content: '🎙️ Upload an MP3, WAV, or M4A file — I will transcribe it, summarize it, and let you chat with the content!' }
-  ]);
+  // Start with empty message arrays — no welcome bubble
+  const [ragMessages, setRagMessages] = useState<Message[]>([]);
+  const [audioMessages, setAudioMessages] = useState<Message[]>([]);
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +24,7 @@ export default function ChatPage() {
   // Doc RAG state
   const [isDocsLoaded, setIsDocsLoaded] = useState(false);
 
-  // Audio Agent state
+  // Audio Chat state
   const [audioSessionId, setAudioSessionId] = useState<string | null>(null);
   const [audioSummary, setAudioSummary] = useState('');
   const [audioChatHistory, setAudioChatHistory] = useState<[string, string][]>([]);
@@ -40,16 +37,22 @@ export default function ChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Converts **bold** markdown to <strong> tags
+  // Converts **bold** markdown to <strong> tags, preserves newlines
   const renderText = (text: string) => {
-    const parts = text.split(/(\*\*[^*]+\*\*)/);
-    return parts.map((part, i) =>
-      part.startsWith('**') && part.endsWith('**')
-        ? <strong key={i} className="font-bold text-white">{part.slice(2, -2)}</strong>
-        : <span key={i}>{part}</span>
-    );
+    return text.split('\n').map((line, lineIdx) => {
+      const parts = line.split(/(\*\*[^*]+\*\*)/);
+      return (
+        <span key={lineIdx}>
+          {parts.map((part, i) =>
+            part.startsWith('**') && part.endsWith('**')
+              ? <strong key={i} className="font-bold text-white">{part.slice(2, -2)}</strong>
+              : <span key={i}>{part}</span>
+          )}
+          {lineIdx < text.split('\n').length - 1 && <br />}
+        </span>
+      );
+    });
   };
-
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -106,9 +109,9 @@ export default function ChatPage() {
 
   const cleanApiUrl = () =>
     (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
-      .trim().replace(/^['"]+|['"]+$/g, '').replace(/\/+$/, '');
+      .trim().replace(/^['\"]+|['\"]+$/g, '').replace(/\/+$/, '');
 
-  // Document upload (sidebar)
+  // Document upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     setIsUploading(true);
@@ -118,7 +121,7 @@ export default function ChatPage() {
       const res = await fetch(`${cleanApiUrl()}/docs/upload`, { method: 'POST', body: formData });
       if (res.ok) {
         setIsDocsLoaded(true);
-        setRagMessages(prev => [...prev, { role: 'bot', content: "✅ Documents uploaded and indexed successfully! Ask me anything about them." }]);
+        // No success bubble — upload card state change is sufficient feedback
       } else throw new Error("Upload failed");
     } catch {
       alert("Failed to upload documents.");
@@ -127,7 +130,7 @@ export default function ChatPage() {
     }
   };
 
-  // Audio file upload (Audio Agent tab)
+  // Audio file upload
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
@@ -148,7 +151,11 @@ export default function ChatPage() {
       const data = await res.json();
       setAudioSessionId(data.session_id);
       setAudioSummary(data.summary);
-      // Summary is shown in the card above — no chat bubble needed
+      // Push summary into chat as a bot message
+      setAudioMessages(prev => [...prev, {
+        role: 'bot',
+        content: `✅ **${file.name}** transcribed successfully!\n\n📋 **Summary:**\n${data.summary}\n\nYou can now ask questions about the audio content.`
+      }]);
     } catch (err) {
       setAudioMessages(prev => [...prev, { role: 'bot', content: `❌ Error: ${err instanceof Error ? err.message : "Unknown error"}` }]);
     } finally {
@@ -169,22 +176,17 @@ export default function ChatPage() {
         const res = await fetch(`${cleanApiUrl()}/docs/chat?language=${language}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: input, chat_history: ragMessages.filter(m => m.role !== 'bot' || !m.content.includes("✅")).map(m => [m.role === 'user' ? 'human' : 'assistant', m.content]) })
+          body: JSON.stringify({ question: input, chat_history: ragMessages.map(m => [m.role === 'user' ? 'human' : 'assistant', m.content]) })
         });
         const data = await res.json();
         const botMsg: Message = { role: 'bot', content: data.answer || "No response", audioUrl: data.audio_url ? `${cleanApiUrl()}${data.audio_url}` : data.audioUrl ? `${cleanApiUrl()}${data.audioUrl}` : undefined };
         setRagMessages(prev => [...prev, botMsg]);
-        // No autoplay — user presses play manually
       } catch {
         setRagMessages(prev => [...prev, { role: 'bot', content: "Error connecting to backend." }]);
       } finally { setIsLoading(false); }
 
     } else {
-      // Audio chat
-      if (!audioSessionId) {
-        alert("Please upload an audio file first!");
-        return;
-      }
+      if (!audioSessionId) { alert("Please upload an audio file first!"); return; }
       const userMsg: Message = { role: 'user', content: input };
       setAudioMessages(prev => [...prev, userMsg]);
       setInput('');
@@ -199,7 +201,6 @@ export default function ChatPage() {
         const botMsg: Message = { role: 'bot', content: data.answer || "No response", audioUrl: data.audio_url ? `${cleanApiUrl()}${data.audio_url}` : undefined };
         setAudioMessages(prev => [...prev, botMsg]);
         setAudioChatHistory(prev => [...prev, [input, data.answer]]);
-        // No autoplay — user presses play manually
       } catch {
         setAudioMessages(prev => [...prev, { role: 'bot', content: "Error in Audio chat." }]);
       } finally { setIsLoading(false); }
@@ -216,10 +217,11 @@ export default function ChatPage() {
         className="glass flex flex-col p-4 border-r border-zinc-800 shrink-0 relative group"
         style={{ width: `${sidebarWidth}px` }}
       >
+        {/* Big sticky branding in sidebar */}
         <div className="flex items-center gap-3 mb-10 px-2">
-          <div className="w-8 h-8 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-lg shadow-lg shadow-blue-500/20" />
-          <h1 className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">
-            QUERY VAULT 2.0 🚀
+          <div className="w-9 h-9 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center text-lg">🔐</div>
+          <h1 className="text-lg font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400 leading-tight">
+            QUERY VAULT<br /><span className="text-xs font-bold text-zinc-500 tracking-widest">2.0 🚀</span>
           </h1>
         </div>
 
@@ -229,20 +231,20 @@ export default function ChatPage() {
             className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === 'chat' ? 'bg-zinc-800/50 text-white border border-zinc-700' : 'text-zinc-500 hover:text-white hover:bg-zinc-900 border border-transparent'}`}
           >
             <MessageSquare size={20} />
-            <span className="font-bold uppercase tracking-wider text-xs">RAG Chatbot 🛡️</span>
+            <span className="font-bold uppercase tracking-wider text-xs">📄 Document Chat</span>
           </button>
           <button
             onClick={() => setActiveTab('audio')}
             className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${activeTab === 'audio' ? 'bg-zinc-800/50 text-white border border-zinc-700' : 'text-zinc-500 hover:text-white hover:bg-zinc-900 border border-transparent'}`}
           >
             <Headphones size={20} />
-            <span className="font-bold uppercase tracking-wider text-xs">Audio Agent 🎙️</span>
+            <span className="font-bold uppercase tracking-wider text-xs">🎙️ Audio Chat</span>
           </button>
         </nav>
 
         <div className="mt-auto pt-6 border-t border-zinc-800 space-y-4">
           <div className="p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800">
-            <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-3 font-bold px-1">Language Logic</div>
+            <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-3 font-bold px-1">🌐 Language</div>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => setLanguage('English')} className={`p-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${language === 'English' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'text-zinc-500 bg-zinc-950'}`}>
                 <Globe size={14} /> English
@@ -252,7 +254,6 @@ export default function ChatPage() {
               </button>
             </div>
           </div>
-
 
           <button
             onClick={() => { localStorage.removeItem('token'); router.push('/login'); }}
@@ -271,79 +272,68 @@ export default function ChatPage() {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col relative overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 scroll-smooth pb-64">
 
-          {/* Branding */}
-          <div className="flex justify-center mb-8">
-            <div className="px-6 py-2 bg-zinc-900/50 border border-zinc-800 rounded-full flex items-center gap-2">
-              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
-              <span className="text-[10px] font-black tracking-[0.2em] text-zinc-400 uppercase">Query Vault 2.0 Intelligence</span>
-            </div>
+        {/* STICKY TOP HEADER — always visible */}
+        <div className="sticky top-0 z-40 border-b border-zinc-800 bg-black/80 backdrop-blur-xl px-8 py-4 flex items-center gap-4">
+          <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+          <div>
+            <h2 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-zinc-400">
+              {activeTab === 'chat' ? '📄 Document Chat' : '🎙️ Audio Chat'}
+            </h2>
+            <p className="text-zinc-500 text-xs mt-0.5">
+              {activeTab === 'chat'
+                ? 'Upload your documents and ask anything — Query Vault 2.0 🔐 has your back.'
+                : 'Upload MP3/WAV/M4A — Whisper AI transcribes, summarizes, and lets you chat with it.'}
+            </p>
           </div>
+        </div>
+
+        {/* SCROLLABLE CHAT AREA */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 scroll-smooth pb-36">
 
           {/* DOC UPLOAD BLOCK — RAG tab */}
           {activeTab === 'chat' && (
-            <div className="max-w-4xl mx-auto w-full mb-10">
-              <div className="glass p-8 rounded-[2.5rem] border border-zinc-800 shadow-2xl">
-                <h2 className="text-2xl font-black mb-2 flex items-center gap-3 uppercase tracking-tighter">
-                  <FileUp className="text-purple-400" /> RAG Chatbot 🛡️
-                </h2>
-                <p className="text-zinc-500 text-sm mb-6">Upload your documents — they will be indexed and you can chat with them below.</p>
-                <label className={`flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${isUploading ? 'border-purple-500 bg-purple-500/5' : isDocsLoaded ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-zinc-700 hover:border-purple-500/50 bg-zinc-900/30'}`}>
-                  {isUploading ? (
-                    <><Loader2 className="animate-spin text-purple-400 mb-3" size={32} /><span className="text-purple-300 font-semibold">Indexing documents...</span></>
-                  ) : isDocsLoaded ? (
-                    <><CheckCircle2 className="text-emerald-400 mb-3" size={32} /><span className="text-emerald-300 font-semibold">Docs Loaded! Upload more</span></>
-                  ) : (
-                    <><UploadCloud className="text-zinc-500 mb-3" size={32} /><span className="text-zinc-300 font-semibold">Click to upload documents</span><span className="text-zinc-600 text-xs mt-1">PDF, DOCX, TXT</span></>
-                  )}
-                  <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" multiple onChange={handleFileUpload} disabled={isUploading} />
-                </label>
-              </div>
+            <div className="max-w-4xl mx-auto w-full">
+              <label className={`flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${isUploading ? 'border-purple-500 bg-purple-500/5' : isDocsLoaded ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-zinc-700 hover:border-purple-500/50 bg-zinc-900/20'}`}>
+                {isUploading ? (
+                  <><Loader2 className="animate-spin text-purple-400 mb-3" size={32} /><span className="text-purple-300 font-semibold">Indexing documents...</span></>
+                ) : isDocsLoaded ? (
+                  <><CheckCircle2 className="text-emerald-400 mb-3" size={32} /><span className="text-emerald-300 font-semibold">✅ Docs Loaded — Upload more anytime</span></>
+                ) : (
+                  <><FileUp className="text-zinc-500 mb-3" size={32} /><span className="text-zinc-300 font-semibold">Click to upload documents</span><span className="text-zinc-600 text-xs mt-1">PDF, DOCX, TXT</span></>
+                )}
+                <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" multiple onChange={handleFileUpload} disabled={isUploading} />
+              </label>
             </div>
           )}
 
           {/* AUDIO UPLOAD BLOCK */}
           {activeTab === 'audio' && (
-            <div className="max-w-4xl mx-auto w-full mb-10">
-              <div className="glass p-8 rounded-[2.5rem] border border-zinc-800 shadow-2xl">
-                <h2 className="text-2xl font-black mb-2 flex items-center gap-3 uppercase tracking-tighter">
-                  <Headphones className="text-indigo-400" /> Audio Agent 🎙️
-                </h2>
-                <p className="text-zinc-500 text-sm mb-6">Upload an audio file — it will be transcribed by Whisper AI and summarized. You can then chat with the content.</p>
-
-                <label className={`flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${isAudioProcessing ? 'border-indigo-500 bg-indigo-500/5' : audioSessionId ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-zinc-700 hover:border-indigo-500/50 bg-zinc-900/30'}`}>
-                  {isAudioProcessing ? (
-                    <><Loader2 className="animate-spin text-indigo-400 mb-3" size={32} /><span className="text-indigo-300 font-semibold">Transcribing with Whisper AI...</span><span className="text-zinc-500 text-xs mt-1">This may take 10-30 seconds</span></>
-                  ) : audioSessionId ? (
-                    <><CheckCircle2 className="text-emerald-400 mb-3" size={32} /><span className="text-emerald-300 font-semibold">Audio Loaded! Upload another</span></>
-                  ) : (
-                    <><UploadCloud className="text-zinc-500 mb-3" size={32} /><span className="text-zinc-300 font-semibold">Click to upload audio file</span><span className="text-zinc-600 text-xs mt-1">MP3, WAV, M4A, OGG, WEBM</span></>
-                  )}
-                  <input type="file" accept=".mp3,.wav,.m4a,.ogg,.webm" className="hidden" onChange={handleAudioUpload} disabled={isAudioProcessing} />
-                </label>
-
-                {audioSummary && (
-                  <div className="mt-6 p-6 bg-black/50 rounded-2xl border border-zinc-800 max-h-60 overflow-y-auto">
-                    <div className="text-[10px] uppercase tracking-widest text-indigo-400 mb-3 font-black">📋 AI Summary</div>
-                    <p className="text-zinc-300 leading-relaxed text-sm">{audioSummary}</p>
-                  </div>
+            <div className="max-w-4xl mx-auto w-full">
+              <label className={`flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${isAudioProcessing ? 'border-indigo-500 bg-indigo-500/5' : audioSessionId ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-zinc-700 hover:border-indigo-500/50 bg-zinc-900/20'}`}>
+                {isAudioProcessing ? (
+                  <><Loader2 className="animate-spin text-indigo-400 mb-3" size={32} /><span className="text-indigo-300 font-semibold">Transcribing with Whisper AI...</span><span className="text-zinc-500 text-xs mt-1">This may take 10-30 seconds</span></>
+                ) : audioSessionId ? (
+                  <><CheckCircle2 className="text-emerald-400 mb-3" size={32} /><span className="text-emerald-300 font-semibold">✅ Audio Loaded — Upload another</span></>
+                ) : (
+                  <><UploadCloud className="text-zinc-500 mb-3" size={32} /><span className="text-zinc-300 font-semibold">Click to upload audio file</span><span className="text-zinc-600 text-xs mt-1">MP3, WAV, M4A, OGG, WEBM</span></>
                 )}
-              </div>
+                <input type="file" accept=".mp3,.wav,.m4a,.ogg,.webm" className="hidden" onChange={handleAudioUpload} disabled={isAudioProcessing} />
+              </label>
             </div>
           )}
 
           {/* CHAT MESSAGES */}
           {currentMessages.map((msg, idx) => (
-            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end animate-in fade-in slide-in-from-bottom-2 duration-300'}`}>
-              <div className={`max-w-[75%] p-7 rounded-[2rem] shadow-2xl leading-relaxed relative ${msg.role === 'user'
+            <div key={idx} className={`flex max-w-4xl mx-auto w-full ${msg.role === 'user' ? 'justify-start' : 'justify-end animate-in fade-in slide-in-from-bottom-2 duration-300'}`}>
+              <div className={`max-w-[80%] p-6 rounded-[2rem] shadow-2xl leading-relaxed ${msg.role === 'user'
                 ? 'bg-gradient-to-br from-indigo-950/40 to-purple-950/40 border border-indigo-500/20 text-indigo-50 rounded-bl-none'
-                : 'bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-br-none font-light'
+                : 'bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-br-none'
               }`}>
-                <div className={`text-[10px] uppercase tracking-[0.3em] mb-4 font-black flex items-center gap-2 ${msg.role === 'user' ? 'text-indigo-400' : 'text-zinc-500'}`}>
-                  {msg.role === 'user' ? '👤 Sender' : '🤖 Intelligence'}
+                <div className={`text-[10px] uppercase tracking-[0.3em] mb-3 font-black flex items-center gap-2 ${msg.role === 'user' ? 'text-indigo-400' : 'text-zinc-500'}`}>
+                  {msg.role === 'user' ? '👤 You' : '🤖 Intelligence'}
                 </div>
-                <div className="text-lg whitespace-pre-wrap">{renderText(msg.content)}</div>
+                <div className="text-base leading-relaxed">{renderText(msg.content)}</div>
                 {msg.audioUrl && (
                   <div className="mt-4 pt-4 border-t border-zinc-800/50">
                     <audio controls className="w-full h-8 accent-indigo-500 rounded-lg opacity-70 hover:opacity-100 transition-opacity" src={msg.audioUrl}>
@@ -354,23 +344,32 @@ export default function ChatPage() {
               </div>
             </div>
           ))}
-          <div className="h-20" />
+
+          {currentMessages.length === 0 && (
+            <div className="max-w-4xl mx-auto w-full text-center py-10">
+              <p className="text-zinc-600 text-sm">
+                {activeTab === 'chat' ? '📂 Upload a document above, then start chatting below.' : '🎵 Upload an audio file above to begin.'}
+              </p>
+            </div>
+          )}
+
+          <div className="h-10" />
           <div ref={scrollRef} />
         </div>
 
         {/* INPUT BAR */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 pointer-events-none">
-          <div className="max-w-4xl mx-auto glass p-3 rounded-[3rem] shadow-2xl border border-zinc-800/80 pointer-events-auto flex items-center gap-2 bg-black/40 backdrop-blur-3xl">
+        <div className="border-t border-zinc-800 p-4 md:p-6 bg-black/60 backdrop-blur-xl">
+          <div className="max-w-4xl mx-auto flex items-center gap-2 glass p-3 rounded-[3rem] border border-zinc-800/80">
             <button
               onClick={startListening}
-              className={`p-5 rounded-full transition-all shadow-xl ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-zinc-900/80 text-zinc-500 hover:text-purple-400'}`}
+              className={`p-4 rounded-full transition-all ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-zinc-900/80 text-zinc-500 hover:text-purple-400'}`}
             >
-              {isListening ? <Square size={22} fill="white" /> : <Mic size={22} />}
+              {isListening ? <Square size={20} fill="white" /> : <Mic size={20} />}
             </button>
             <input
               type="text"
-              placeholder={activeTab === 'chat' ? `Ask the Vault... (${language})` : audioSessionId ? "Ask about the audio content..." : "Upload an audio file first..."}
-              className="flex-1 bg-transparent p-4 outline-none text-zinc-100 placeholder-zinc-700 text-xl"
+              placeholder={activeTab === 'chat' ? `Ask about your documents... (${language})` : audioSessionId ? "Ask about the audio content..." : "Upload an audio file first..."}
+              className="flex-1 bg-transparent p-3 outline-none text-zinc-100 placeholder-zinc-700 text-lg"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -379,9 +378,9 @@ export default function ChatPage() {
             <button
               onClick={handleSendMessage}
               disabled={isLoading || (activeTab === 'audio' && !audioSessionId)}
-              className="p-5 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-full shadow-2xl disabled:opacity-50"
+              className="p-4 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-full shadow-2xl disabled:opacity-50"
             >
-              {isLoading ? <Loader2 className="animate-spin" size={26} /> : <Send size={26} />}
+              {isLoading ? <Loader2 className="animate-spin" size={22} /> : <Send size={22} />}
             </button>
           </div>
         </div>
