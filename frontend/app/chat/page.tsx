@@ -10,6 +10,46 @@ type Message = {
   source?: 'document' | 'audio';
 };
 
+/** Small copy + share dropdown shown on bot bubble hover */
+function BubbleShareMenu({ content }: { content: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => { navigator.clipboard.writeText(content); }}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600 transition-all text-[11px] font-semibold"
+      >
+        <Copy size={11} /> Copy
+      </button>
+      <div className="relative">
+        <button
+          onClick={() => setOpen(p => !p)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-blue-400 hover:text-blue-200 hover:border-blue-700 transition-all text-[11px] font-semibold"
+        >
+          <Share2 size={11} /> Share
+        </button>
+        {open && (
+          <div className="absolute bottom-9 left-0 bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl py-1.5 z-50 min-w-[150px]">
+            <button
+              onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(content.slice(0, 1500))}`, '_blank'); setOpen(false); }}
+              className="w-full text-left px-4 py-2.5 text-[11px] text-emerald-400 hover:bg-zinc-800 flex items-center gap-2 font-semibold transition-all"
+            >
+              <MessageCircle size={12} /> WhatsApp
+            </button>
+            <button
+              onClick={() => { window.open(`https://mail.google.com/mail/?view=cm&su=${encodeURIComponent('AI Response')}&body=${encodeURIComponent(content.slice(0, 3000))}`, '_blank'); setOpen(false); }}
+              className="w-full text-left px-4 py-2.5 text-[11px] text-rose-400 hover:bg-zinc-800 flex items-center gap-2 font-semibold transition-all"
+            >
+              <Mail size={12} /> Gmail
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 export default function ChatPage() {
   const [ragMessages, setRagMessages] = useState<Message[]>([]);
   const [audioMessages, setAudioMessages] = useState<Message[]>([]);
@@ -347,17 +387,17 @@ export default function ChatPage() {
         <div className="flex items-center gap-3 mb-6 px-2">
           <div className="w-10 h-10 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center text-xl">🔐</div>
           <div>
-            <h1 className="text-2xl font-black tracking-tighter text-white leading-none">QUERY VAULT</h1>
-            <span className="text-xs font-bold text-zinc-500 tracking-widest">2.0 🚀</span>
+            <h1 className="text-2xl font-black tracking-tighter leading-none"
+              style={{ textShadow: '0 0 8px #818cf8, 0 2px 0 #312e81, 0 4px 0 #1e1b4b, 2px 6px 12px rgba(99,102,241,0.4)' }}
+            >QUERY VAULT</h1>
           </div>
         </div>
 
-        {/* Username badge */}
+        {/* Username — plain, no box */}
         {username && (
-          <div className="px-3 mb-6 py-3 bg-zinc-900/60 rounded-2xl border border-zinc-800">
-            <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Logged in as</p>
-            <p className="text-base font-black uppercase tracking-wide text-white">{username}</p>
-          </div>
+          <p className="px-2 mb-6 text-sm font-black uppercase tracking-widest"
+            style={{ color: '#a78bfa', textShadow: '0 0 10px rgba(167,139,250,0.6)' }}
+          >{username}</p>
         )}
 
         <nav className="flex-1 space-y-2">
@@ -406,9 +446,19 @@ export default function ChatPage() {
       <main className="flex-1 flex flex-col relative overflow-hidden">
 
         {/* STICKY TOP HEADER */}
-        <div className="sticky top-0 z-40 border-b border-zinc-800 bg-black/80 backdrop-blur-xl px-8 py-4 flex items-center gap-4">
+        <div className="sticky top-0 z-40 border-b bg-black/80 backdrop-blur-xl px-8 py-4 flex items-center gap-4"
+          style={{ borderColor: 'rgba(99,102,241,0.4)', boxShadow: '0 1px 20px rgba(99,102,241,0.15)' }}
+        >
           <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
-          <h2 className="text-3xl font-black tracking-tight text-white flex-1">
+          <h2 className="text-3xl font-black tracking-tight flex-1"
+            style={{
+              background: 'linear-gradient(90deg, #e0e7ff 0%, #a5f3fc 40%, #818cf8 80%, #c4b5fd 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              textShadow: 'none',
+              filter: 'drop-shadow(0 0 8px rgba(165,243,252,0.5))'
+            }}
+          >
             {activeTab === 'chat' ? '📄 Query Vault Document Chat' : '🎙️ Query Vault Audio Chat'}
           </h2>
 
@@ -507,10 +557,16 @@ export default function ChatPage() {
           {/* CHAT MESSAGES */}
           {currentMessages.map((msg, idx) => (
             <div key={idx} className={`group flex flex-col max-w-4xl mx-auto w-full gap-1 ${msg.role === 'user' ? 'items-start' : 'items-end animate-in fade-in slide-in-from-bottom-2 duration-300'}`}>
-              <div className={`max-w-[80%] p-6 rounded-[2rem] shadow-2xl leading-relaxed ${msg.role === 'user'
-                ? 'bg-gradient-to-br from-indigo-950/40 to-purple-950/40 border border-indigo-500/20 text-indigo-50 rounded-bl-none'
-                : 'bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-br-none'
-              }`}>
+              <div className={`max-w-[80%] p-6 rounded-[2rem] shadow-2xl leading-relaxed transition-all ${
+                msg.role === 'user'
+                  ? 'bg-gradient-to-br from-indigo-950/50 to-purple-950/50 text-indigo-50 rounded-bl-none'
+                  : 'bg-zinc-900/80 text-zinc-200 rounded-br-none'
+              }`}
+                style={msg.role === 'user'
+                  ? { border: '1px solid rgba(129,140,248,0.4)', boxShadow: '0 0 16px rgba(129,140,248,0.2), inset 0 1px 0 rgba(255,255,255,0.05)' }
+                  : { border: '1px solid rgba(34,211,238,0.25)', boxShadow: '0 0 18px rgba(34,211,238,0.12), inset 0 1px 0 rgba(255,255,255,0.03)' }
+                }
+              >
                 <div className={`text-[10px] uppercase tracking-[0.3em] mb-3 font-black flex items-center gap-2 ${msg.role === 'user' ? 'text-indigo-400' : 'text-zinc-500'}`}>
                   {msg.role === 'user' ? `👤 ${username || 'You'}` : '🤖 Intelligence'}
                 </div>
@@ -527,32 +583,10 @@ export default function ChatPage() {
               {/* PER-BUBBLE ACTION ROW — appears on hover */}
               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2">
                 {msg.role === 'bot' ? (
-                  // Bot bubble actions: Copy + WhatsApp + Gmail
-                  <>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(msg.content)}
-                      title="Copy"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-600 transition-all text-[11px] font-semibold"
-                    >
-                      <Copy size={11} /> Copy
-                    </button>
-                    <button
-                      onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(msg.content.slice(0, 1500))}`, '_blank')}
-                      title="Share on WhatsApp"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-emerald-500 hover:text-emerald-300 hover:border-emerald-700 transition-all text-[11px] font-semibold"
-                    >
-                      <MessageCircle size={11} /> WhatsApp
-                    </button>
-                    <button
-                      onClick={() => window.open(`https://mail.google.com/mail/?view=cm&su=${encodeURIComponent('AI Response')}&body=${encodeURIComponent(msg.content.slice(0, 3000))}`, '_blank')}
-                      title="Share via Gmail"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-rose-500 hover:text-rose-300 hover:border-rose-700 transition-all text-[11px] font-semibold"
-                    >
-                      <Mail size={11} /> Gmail
-                    </button>
-                  </>
+                  // Bot bubble actions: Copy + Share dropdown
+                  <BubbleShareMenu content={msg.content} />
                 ) : (
-                  // User bubble actions: Delete pair
+                  // User bubble: Delete pair
                   <button
                     onClick={() => deletePair(idx)}
                     title="Delete this Q&A pair"
