@@ -10,6 +10,8 @@ import docx
 from gtts import gTTS
 import uuid
 from PyPDF2 import PdfReader
+import requests
+
 
 class RAGService:
     def __init__(self, groq_api_key: str, pinecone_api_key: str, index_name: str = "queryvault"):
@@ -42,6 +44,21 @@ class RAGService:
                 doc = docx.Document(file.file)
                 for para in doc.paragraphs:
                     text += para.text + "\n"
+            elif file_extension in [".mp3", ".wav", ".m4a"]:
+                file.file.seek(0)
+                headers = {"Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"}
+                data = {"model": "whisper-large-v3", "response_format": "text"}
+                files_payload = {"file": (file.filename, file.file, f"audio/{file_extension[1:]}")}
+                response = requests.post(
+                    "https://api.groq.com/openai/v1/audio/transcriptions",
+                    headers=headers,
+                    data=data,
+                    files=files_payload
+                )
+                if response.status_code == 200:
+                    text += response.text + "\n"
+                else:
+                    raise Exception(f"Failed to transcribe audio {file.filename}: {response.text}")
             else:
                 text += file.file.read().decode("utf-8")
 

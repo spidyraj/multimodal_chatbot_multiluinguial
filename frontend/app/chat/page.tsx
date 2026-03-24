@@ -300,9 +300,9 @@ export default function ChatPage() {
                 <FileUp className="text-zinc-500 mb-2 group-hover:text-purple-400" />
               )}
               <span className="text-sm text-zinc-400 font-medium">
-                {isUploading ? "Indexing..." : isDocsLoaded ? "Docs Loaded" : "Upload Docs"}
+                {isUploading ? "Indexing..." : isDocsLoaded ? "Docs/Audio Loaded" : "Upload Docs & Audio (.mp3)"}
               </span>
-              <input type="file" className="hidden" multiple onChange={handleFileUpload} disabled={isUploading} />
+              <input type="file" accept=".pdf,.doc,.docx,.txt,.mp3,.wav,.m4a" className="hidden" multiple onChange={handleFileUpload} disabled={isUploading} />
             </label>
           </div>
 
