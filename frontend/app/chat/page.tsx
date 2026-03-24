@@ -355,7 +355,7 @@ export default function ChatPage() {
         </div>
 
         {/* INPUT BAR */}
-        <div className="border-t border-zinc-800 p-4 md:p-6 bg-black/60 backdrop-blur-xl">
+        <div className="p-4 md:p-6">
           <div className="max-w-4xl mx-auto flex items-center gap-2 glass p-3 rounded-[3rem] border border-zinc-800/80">
             <button
               onClick={startListening}
