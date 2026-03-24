@@ -88,8 +88,14 @@ export default function ChatPage() {
   const [audioSessionId, setAudioSessionId] = useState<string | null>(null);
   const [audioChatHistory, setAudioChatHistory] = useState<[string, string][]>([]);
   const [isAudioProcessing, setIsAudioProcessing] = useState(false);
+  const [audioSegments, setAudioSegments] = useState<{start:number;end:number;text:string}[]>([]);
+  const [pendingAudioFile, setPendingAudioFile] = useState<File | null>(null);
+  const [showAudioModeModal, setShowAudioModeModal] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
 
-  // Resizable Sidebar
+  // Scroll refs
+  const chatAreaRef = useRef<HTMLDivElement>(null);
+
   const [sidebarWidth, setSidebarWidth] = useState(288);
   const [isResizing, setIsResizing] = useState(false);
 
@@ -238,12 +244,24 @@ export default function ChatPage() {
     }
   };
 
-  // Audio file upload
-  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Audio file upload — show mode modal if session already loaded
+  const handleAudioFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
+    if (audioSessionId) {
+      setPendingAudioFile(file);
+      setShowAudioModeModal(true);
+    } else {
+      doUploadAudio(file);
+    }
+  };
+
+  const doUploadAudio = async (file: File) => {
+    setShowAudioModeModal(false);
+    setPendingAudioFile(null);
     setIsAudioProcessing(true);
     setAudioSessionId(null);
+    setAudioSegments([]);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -261,6 +279,7 @@ export default function ChatPage() {
       }
       const data = await res.json();
       setAudioSessionId(data.session_id);
+      setAudioSegments(data.segments || []);
       // Strip any leading 'Summary:' prefix the backend may include to avoid duplication
       const summaryText = (data.summary || '').replace(/^\s*\*?\*?Summary:?\*?\*?\s*/i, '').trim();
       setAudioMessages(prev => [...prev, {
@@ -596,7 +615,23 @@ export default function ChatPage() {
         </div>
 
         {/* SCROLLABLE CHAT AREA */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 scroll-smooth pb-36">
+        <div
+          ref={chatAreaRef}
+          className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 scroll-smooth pb-36 relative"
+        >
+          {/* Scroll to top / bottom floating buttons */}
+          <div className="fixed right-8 bottom-36 flex flex-col gap-2 z-30">
+            <button
+              onClick={() => chatAreaRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+              title="Scroll to top"
+              className="w-9 h-9 rounded-full bg-zinc-900/90 border border-zinc-700 text-zinc-400 hover:text-white hover:border-indigo-500 transition-all flex items-center justify-center shadow-xl text-base"
+            >↑</button>
+            <button
+              onClick={() => scrollRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              title="Scroll to bottom"
+              className="w-9 h-9 rounded-full bg-zinc-900/90 border border-zinc-700 text-zinc-400 hover:text-white hover:border-cyan-500 transition-all flex items-center justify-center shadow-xl text-base"
+            >↓</button>
+          </div>
 
           {/* DOC UPLOAD BLOCK */}
           {activeTab === 'chat' && (
@@ -616,17 +651,42 @@ export default function ChatPage() {
 
           {/* AUDIO UPLOAD BLOCK */}
           {activeTab === 'audio' && (
-            <div className="max-w-4xl mx-auto w-full">
+            <div className="max-w-4xl mx-auto w-full space-y-4">
               <label className={`flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${isAudioProcessing ? 'border-indigo-500 bg-indigo-500/5' : audioSessionId ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-zinc-700 hover:border-indigo-500/50 bg-zinc-900/20'}`}>
                 {isAudioProcessing ? (
-                  <><Loader2 className="animate-spin text-indigo-400 mb-3" size={32} /><span className="text-indigo-300 font-semibold">Transcribing with Whisper AI...</span><span className="text-zinc-500 text-xs mt-1">This may take 10-30 seconds</span></>
+                  <><Loader2 className="animate-spin text-indigo-400 mb-3" size={32} /><span className="text-indigo-300 font-semibold">Transcribing...</span><span className="text-zinc-500 text-xs mt-1">This may take 10–30 seconds</span></>
                 ) : audioSessionId ? (
-                  <><CheckCircle2 className="text-emerald-400 mb-3" size={32} /><span className="text-emerald-300 font-semibold">✅ Audio Loaded — Upload another</span></>
+                  <><CheckCircle2 className="text-emerald-400 mb-3" size={32} /><span className="text-emerald-300 font-semibold">✅ Audio Loaded — Click to upload another</span></>
                 ) : (
                   <><UploadCloud className="text-zinc-500 mb-3" size={32} /><span className="text-zinc-300 font-semibold">Click to upload audio file</span><span className="text-zinc-600 text-xs mt-1">MP3, WAV, M4A, OGG, WEBM</span></>
                 )}
-                <input type="file" accept=".mp3,.wav,.m4a,.ogg,.webm" className="hidden" onChange={handleAudioUpload} disabled={isAudioProcessing} />
+                <input type="file" accept=".mp3,.wav,.m4a,.ogg,.webm" className="hidden" onChange={handleAudioFileSelect} disabled={isAudioProcessing} />
               </label>
+
+              {/* Timestamp transcript accordion */}
+              {audioSegments.length > 0 && (
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
+                  <button
+                    onClick={() => setShowTranscript(p => !p)}
+                    className="w-full flex items-center justify-between px-5 py-4 text-sm font-bold text-zinc-300 hover:text-white transition-colors"
+                  >
+                    <span>📄 Transcript with Timestamps</span>
+                    <span className="text-zinc-500 text-xs">{showTranscript ? '▲ Hide' : '▼ Show'}</span>
+                  </button>
+                  {showTranscript && (
+                    <div className="max-h-64 overflow-y-auto divide-y divide-zinc-800/50">
+                      {audioSegments.map((seg, i) => (
+                        <div key={i} className="flex gap-3 px-5 py-3 hover:bg-zinc-800/30 transition-colors">
+                          <span className="text-[11px] font-mono text-cyan-500 shrink-0 pt-0.5">
+                            {String(Math.floor(seg.start / 60)).padStart(2,'0')}:{String(Math.floor(seg.start % 60)).padStart(2,'0')}
+                          </span>
+                          <span className="text-sm text-zinc-300 leading-relaxed">{seg.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -718,6 +778,44 @@ export default function ChatPage() {
                 </button>
                 <button
                   onClick={() => { setShowModeModal(false); setPendingFiles(null); }}
+                  className="text-zinc-600 hover:text-zinc-400 text-sm mt-2 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AUDIO REPLACE / ADD MODAL */}
+        {showAudioModeModal && (
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="glass border border-zinc-700 rounded-[2rem] p-8 max-w-sm w-full mx-4 shadow-2xl">
+              <h3 className="text-xl font-black text-white mb-2">Upload Audio Mode</h3>
+              <p className="text-zinc-400 text-sm mb-6">You already have an audio session loaded. What would you like to do?</p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => pendingAudioFile && doUploadAudio(pendingAudioFile)}
+                  className="flex items-center gap-3 p-4 bg-rose-600/20 border border-rose-500/30 rounded-2xl text-rose-300 font-semibold hover:bg-rose-600/30 transition-all"
+                >
+                  <RefreshCw size={20} />
+                  <div className="text-left">
+                    <div className="font-bold">🔄 Replace Existing</div>
+                    <div className="text-xs text-rose-400/70">Clear old audio and start fresh</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => { setShowAudioModeModal(false); setPendingAudioFile(null); if (pendingAudioFile) doUploadAudio(pendingAudioFile); }}
+                  className="flex items-center gap-3 p-4 bg-emerald-600/20 border border-emerald-500/30 rounded-2xl text-emerald-300 font-semibold hover:bg-emerald-600/30 transition-all"
+                >
+                  <PlusCircle size={20} />
+                  <div className="text-left">
+                    <div className="font-bold">➕ Keep &amp; Add New Session</div>
+                    <div className="text-xs text-emerald-400/70">Load new audio into a new session</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => { setShowAudioModeModal(false); setPendingAudioFile(null); }}
                   className="text-zinc-600 hover:text-zinc-400 text-sm mt-2 transition-colors"
                 >
                   Cancel

@@ -19,12 +19,12 @@ class AudioService:
         # In-memory session store: session_id -> transcript text + vector store
         self.sessions: dict = {}
 
-    def _transcribe_audio(self, file_bytes: bytes, filename: str) -> str:
-        """Send audio bytes to Groq Whisper API and return transcription text."""
+    def _transcribe_audio(self, file_bytes: bytes, filename: str) -> dict:
+        """Send audio bytes to Groq Whisper API; returns transcript text + timestamped segments."""
         headers = {"Authorization": f"Bearer {self.api_key}"}
         ext = os.path.splitext(filename)[1].lower().lstrip(".")
         mime = f"audio/{ext}" if ext in ["mp3", "wav", "m4a", "ogg", "webm"] else "audio/mpeg"
-        data = {"model": "whisper-large-v3", "response_format": "text"}
+        data = {"model": "whisper-large-v3", "response_format": "verbose_json"}
         files = {"file": (filename, file_bytes, mime)}
         response = requests.post(
             "https://api.groq.com/openai/v1/audio/transcriptions",
@@ -34,7 +34,16 @@ class AudioService:
         )
         if response.status_code != 200:
             raise Exception(f"Groq Whisper API error: {response.text}")
-        return response.text.strip()
+        result = response.json()
+        segments = [
+            {
+                "start": round(s.get("start", 0), 1),
+                "end": round(s.get("end", 0), 1),
+                "text": s.get("text", "").strip()
+            }
+            for s in result.get("segments", [])
+        ]
+        return {"text": result.get("text", "").strip(), "segments": segments}
 
     def _build_vector_store(self, transcript: str) -> FAISS:
         """Chunk transcript and build an in-memory FAISS store."""
@@ -47,16 +56,18 @@ class AudioService:
             chunk = " ".join(words[i:i + chunk_size])
             chunks.append(chunk)
             i += chunk_size - overlap
-        
+
         documents = [Document(page_content=c) for c in chunks]
         return FAISS.from_documents(documents, self.embeddings)
 
     def process_audio(self, file_bytes: bytes, filename: str, language: str = "English") -> dict:
         """
         Full pipeline: transcribe → summarize → build vector store → return session.
-        Returns: {session_id, transcript, summary}
+        Returns: {session_id, transcript, summary, segments}
         """
-        transcript = self._transcribe_audio(file_bytes, filename)
+        transcription = self._transcribe_audio(file_bytes, filename)
+        transcript = transcription["text"]
+        segments = transcription["segments"]
 
         summary_prompt = ChatPromptTemplate.from_messages([
             ("system", f"You are a professional content summarizer. Create a comprehensive, well-structured summary in {language}. Include key points, main topics, and important details."),
@@ -73,7 +84,7 @@ class AudioService:
             "filename": filename
         }
 
-        return {"session_id": session_id, "transcript": transcript, "summary": summary}
+        return {"session_id": session_id, "transcript": transcript, "summary": summary, "segments": segments}
 
     def chat(self, session_id: str, question: str, chat_history: list, language: str = "English") -> dict:
         """Chat with the audio content using RAG."""
