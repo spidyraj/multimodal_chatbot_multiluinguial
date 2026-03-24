@@ -15,6 +15,7 @@ langchain-pinecone
 youtube-transcript-api
 gtts
 requests
+faiss-cpu
 python-dotenv
 PyPDF2
 python-docx
