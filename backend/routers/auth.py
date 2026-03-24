@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+import re
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
@@ -11,6 +12,14 @@ router = APIRouter()
 
 @router.post("/register")
 def register(username: str, email: str, password: str, db: Session = Depends(get_db)):
+    # Password Validation
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+    if not re.search(r"\d", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one number")
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one special character")
+
     db_user = db.query(User).filter(User.username == username).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
