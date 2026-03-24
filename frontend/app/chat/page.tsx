@@ -274,14 +274,9 @@ export default function ChatPage() {
         <div className="sticky top-0 z-40 border-b border-zinc-800 bg-black/80 backdrop-blur-xl px-8 py-4 flex items-center gap-4">
           <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
           <div>
-            <h2 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-zinc-400">
-              {activeTab === 'chat' ? '📄 Document Chat' : '🎙️ Audio Chat'}
+            <h2 className="text-3xl font-black tracking-tight text-white">
+              {activeTab === 'chat' ? '📄 Query Vault Document Chat' : '🎙️ Query Vault Audio Chat'}
             </h2>
-            <p className="text-zinc-500 text-xs mt-0.5">
-              {activeTab === 'chat'
-                ? 'Upload your documents and ask anything — Query Vault 2.0 🔐 has your back.'
-                : 'Upload MP3/WAV/M4A — Whisper AI transcribes, summarizes, and lets you chat with it.'}
-            </p>
           </div>
         </div>
 
@@ -344,7 +339,7 @@ export default function ChatPage() {
 
           {currentMessages.length === 0 && (
             <div className="max-w-4xl mx-auto w-full text-center py-10">
-              <p className="text-zinc-600 text-sm">
+              <p className="text-zinc-500 text-lg font-medium">
                 {activeTab === 'chat' ? '📂 Upload a document above, then start chatting below.' : '🎵 Upload an audio file above to begin.'}
               </p>
             </div>
