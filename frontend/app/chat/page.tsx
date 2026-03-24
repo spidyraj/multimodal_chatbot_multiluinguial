@@ -23,6 +23,7 @@ export default function ChatPage() {
 
   // Doc RAG state
   const [isDocsLoaded, setIsDocsLoaded] = useState(false);
+  const [username, setUsername] = useState('');
 
   // Audio Chat state
   const [audioSessionId, setAudioSessionId] = useState<string | null>(null);
@@ -55,7 +56,11 @@ export default function ChatPage() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token) router.push('/login');
+    if (!token) { router.push('/login'); return; }
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      setUsername(payload.sub || payload.username || payload.email || 'USER');
+    } catch { /* ignore decode errors */ }
   }, [router]);
 
   useEffect(() => {
@@ -214,13 +219,20 @@ export default function ChatPage() {
         className="glass flex flex-col p-4 border-r border-zinc-800 shrink-0 relative group"
         style={{ width: `${sidebarWidth}px` }}
       >
-        {/* Big sticky branding in sidebar */}
-        <div className="flex items-center gap-3 mb-10 px-2">
-          <div className="w-9 h-9 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center text-lg">🔐</div>
-          <h1 className="text-lg font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400 leading-tight">
-            QUERY VAULT<br /><span className="text-xs font-bold text-zinc-500 tracking-widest">2.0 🚀</span>
-          </h1>
+        {/* Sidebar branding */}
+        <div className="flex items-center gap-3 mb-6 px-2">
+          <div className="w-10 h-10 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center text-xl">🔐</div>
+          <div>
+            <h1 className="text-2xl font-black tracking-tighter text-white leading-none">QUERY VAULT</h1>
+            <span className="text-xs font-bold text-zinc-500 tracking-widest">2.0 🚀</span>
+          </div>
         </div>
+        {username && (
+          <div className="px-3 mb-6 py-3 bg-zinc-900/60 rounded-2xl border border-zinc-800">
+            <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Logged in as</p>
+            <p className="text-base font-black uppercase tracking-wide text-white">{username}</p>
+          </div>
+        )}
 
         <nav className="flex-1 space-y-2">
           <button
