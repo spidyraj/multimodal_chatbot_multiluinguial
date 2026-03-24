@@ -26,7 +26,6 @@ export default function ChatPage() {
 
   // Audio Chat state
   const [audioSessionId, setAudioSessionId] = useState<string | null>(null);
-  const [audioSummary, setAudioSummary] = useState('');
   const [audioChatHistory, setAudioChatHistory] = useState<[string, string][]>([]);
   const [isAudioProcessing, setIsAudioProcessing] = useState(false);
 
@@ -135,7 +134,6 @@ export default function ChatPage() {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     setIsAudioProcessing(true);
-    setAudioSummary('');
     setAudioSessionId(null);
 
     const formData = new FormData();
@@ -150,7 +148,6 @@ export default function ChatPage() {
       }
       const data = await res.json();
       setAudioSessionId(data.session_id);
-      setAudioSummary(data.summary);
       // Push summary into chat as a bot message
       setAudioMessages(prev => [...prev, {
         role: 'bot',
