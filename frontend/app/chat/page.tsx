@@ -13,13 +13,29 @@ type Message = {
 /** Small copy + share dropdown shown on bot bubble hover */
 function BubbleShareMenu({ content }: { content: string }) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="flex items-center gap-1">
       <button
-        onClick={() => { navigator.clipboard.writeText(content); }}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600 transition-all text-[11px] font-semibold"
+        onClick={handleCopy}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-[11px] font-semibold ${
+          copied
+            ? 'bg-emerald-950/40 border-emerald-700 text-emerald-400'
+            : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600'
+        }`}
       >
-        <Copy size={11} /> Copy
+        {copied ? (
+          <><span>✓</span> Copied!</>
+        ) : (
+          <><Copy size={11} /> Copy</>
+        )}
       </button>
       <div className="relative">
         <button
@@ -245,9 +261,11 @@ export default function ChatPage() {
       }
       const data = await res.json();
       setAudioSessionId(data.session_id);
+      // Strip any leading 'Summary:' prefix the backend may include to avoid duplication
+      const summaryText = (data.summary || '').replace(/^\s*\*?\*?Summary:?\*?\*?\s*/i, '').trim();
       setAudioMessages(prev => [...prev, {
         role: 'bot',
-        content: `✅ **${file.name}** transcribed successfully!\n\n📋 **Summary:**\n${data.summary}\n\nYou can now ask questions about the audio content.`
+        content: `✅ Audio transcribed successfully!\n\n📋 **Summary:**\n${summaryText}\n\nYou can now ask questions about the audio content.`
       }]);
     } catch (err) {
       setAudioMessages(prev => [...prev, { role: 'bot', content: `❌ Error: ${err instanceof Error ? err.message : "Unknown error"}` }]);
