@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, FileUp, Mic, Send, LogOut, Loader2, Globe, Languages, Square, CheckCircle2, Headphones, UploadCloud, RefreshCw, PlusCircle } from 'lucide-react';
+import { MessageSquare, FileUp, Mic, Send, LogOut, Loader2, Globe, Languages, Square, CheckCircle2, Headphones, UploadCloud, RefreshCw, PlusCircle, Download, Share2, Trash2, MessageCircle, Mail } from 'lucide-react';
 
 type Message = {
   role: 'user' | 'bot';
@@ -269,6 +269,59 @@ export default function ChatPage() {
   };
 
   const currentMessages = activeTab === 'chat' ? ragMessages : audioMessages;
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+
+  // ---- Chat export helpers ----
+  const chatToText = (msgs: Message[]) =>
+    msgs.map(m => `[${m.role === 'user' ? username.toUpperCase() || 'YOU' : 'AI'}]\n${m.content}`).join('\n\n---\n\n');
+
+  const downloadFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+    setShowDownloadMenu(false);
+  };
+
+  const handleDownload = (fmt: 'txt' | 'json' | 'doc') => {
+    const label = activeTab === 'chat' ? 'document_chat' : 'audio_chat';
+    const msgs = currentMessages;
+    if (fmt === 'txt') {
+      downloadFile(chatToText(msgs), `${label}.txt`, 'text/plain');
+    } else if (fmt === 'json') {
+      downloadFile(JSON.stringify(msgs, null, 2), `${label}.json`, 'application/json');
+    } else {
+      const html = `<html><body style="font-family:Arial">${msgs.map(m =>
+        `<p><b>${m.role === 'user' ? username.toUpperCase() || 'YOU' : 'AI'}:</b><br/>${m.content.replace(/\n/g, '<br/>')}</p><hr/>`
+      ).join('')}</body></html>`;
+      downloadFile(html, `${label}.doc`, 'application/msword');
+    }
+  };
+
+  const handleShare = (platform: 'whatsapp' | 'gmail') => {
+    const text = chatToText(currentMessages);
+    const label = activeTab === 'chat' ? 'Document Chat' : 'Audio Chat';
+    if (platform === 'whatsapp') {
+      window.open(`https://wa.me/?text=${encodeURIComponent(`Query Vault ${label} History:\n\n${text.slice(0, 1500)}`)}`, '_blank');
+    } else {
+      window.open(`https://mail.google.com/mail/?view=cm&su=${encodeURIComponent(`Query Vault ${label} History`)}&body=${encodeURIComponent(text.slice(0, 3000))}`, '_blank');
+    }
+    setShowShareMenu(false);
+  };
+
+  const handleClearChat = async () => {
+    if (!confirm('Clear all chat history for this tab? This cannot be undone.')) return;
+    const src = activeTab === 'chat' ? 'document' : 'audio';
+    try {
+      await fetch(`${cleanApiUrl()}/conversations/history?source=${src}`, {
+        method: 'DELETE', headers: authHeaders()
+      });
+    } catch { /* ignore */ }
+    if (activeTab === 'chat') setRagMessages([]);
+    else setAudioMessages([]);
+  };
 
   return (
     <div className="flex h-screen bg-black text-white font-sans overflow-hidden">
@@ -343,9 +396,65 @@ export default function ChatPage() {
         {/* STICKY TOP HEADER */}
         <div className="sticky top-0 z-40 border-b border-zinc-800 bg-black/80 backdrop-blur-xl px-8 py-4 flex items-center gap-4">
           <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
-          <h2 className="text-3xl font-black tracking-tight text-white">
+          <h2 className="text-3xl font-black tracking-tight text-white flex-1">
             {activeTab === 'chat' ? '📄 Query Vault Document Chat' : '🎙️ Query Vault Audio Chat'}
           </h2>
+
+          {/* ACTION TOOLBAR */}
+          {currentMessages.length > 0 && (
+            <div className="flex items-center gap-2">
+
+              {/* DOWNLOAD */}
+              <div className="relative">
+                <button
+                  onClick={() => { setShowDownloadMenu(p => !p); setShowShareMenu(false); }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 transition-all text-xs font-bold"
+                >
+                  <Download size={14} /> Download
+                </button>
+                {showDownloadMenu && (
+                  <div className="absolute right-0 top-12 bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl py-2 z-50 min-w-[140px]">
+                    {([['txt', '📝 TXT'], ['json', '🗂️ JSON'], ['doc', '📄 DOC']] as const).map(([fmt, label]) => (
+                      <button key={fmt} onClick={() => handleDownload(fmt)}
+                        className="w-full text-left px-4 py-3 text-xs text-zinc-300 hover:text-white hover:bg-zinc-800 transition-all font-semibold">
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* SHARE */}
+              <div className="relative">
+                <button
+                  onClick={() => { setShowShareMenu(p => !p); setShowDownloadMenu(false); }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 transition-all text-xs font-bold"
+                >
+                  <Share2 size={14} /> Share
+                </button>
+                {showShareMenu && (
+                  <div className="absolute right-0 top-12 bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl py-2 z-50 min-w-[160px]">
+                    <button onClick={() => handleShare('whatsapp')}
+                      className="w-full text-left px-4 py-3 text-xs text-emerald-400 hover:bg-zinc-800 transition-all font-semibold flex items-center gap-2">
+                      <MessageCircle size={14} /> WhatsApp
+                    </button>
+                    <button onClick={() => handleShare('gmail')}
+                      className="w-full text-left px-4 py-3 text-xs text-rose-400 hover:bg-zinc-800 transition-all font-semibold flex items-center gap-2">
+                      <Mail size={14} /> Gmail
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* CLEAR */}
+              <button
+                onClick={handleClearChat}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 border border-red-900/40 text-red-400 hover:text-red-300 hover:border-red-700 transition-all text-xs font-bold"
+              >
+                <Trash2 size={14} /> Clear
+              </button>
+            </div>
+          )}
         </div>
 
         {/* SCROLLABLE CHAT AREA */}
