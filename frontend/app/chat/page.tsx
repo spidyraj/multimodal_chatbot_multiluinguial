@@ -1,16 +1,16 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, FileUp, Mic, Send, LogOut, Loader2, Globe, Languages, Square, CheckCircle2, Headphones, UploadCloud } from 'lucide-react';
+import { MessageSquare, FileUp, Mic, Send, LogOut, Loader2, Globe, Languages, Square, CheckCircle2, Headphones, UploadCloud, RefreshCw, PlusCircle } from 'lucide-react';
 
 type Message = {
   role: 'user' | 'bot';
   content: string;
   audioUrl?: string;
+  source?: 'document' | 'audio';
 };
 
 export default function ChatPage() {
-  // Start with empty message arrays — no welcome bubble
   const [ragMessages, setRagMessages] = useState<Message[]>([]);
   const [audioMessages, setAudioMessages] = useState<Message[]>([]);
 
@@ -20,10 +20,13 @@ export default function ChatPage() {
   const [activeTab, setActiveTab] = useState<'chat' | 'audio'>('chat');
   const [language, setLanguage] = useState<'English' | 'Hindi'>('English');
   const [isListening, setIsListening] = useState(false);
+  const [username, setUsername] = useState('');
+  const [token, setToken] = useState('');
 
   // Doc RAG state
   const [isDocsLoaded, setIsDocsLoaded] = useState(false);
-  const [username, setUsername] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<FileList | null>(null);
+  const [showModeModal, setShowModeModal] = useState(false);
 
   // Audio Chat state
   const [audioSessionId, setAudioSessionId] = useState<string | null>(null);
@@ -37,9 +40,18 @@ export default function ChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
+  const cleanApiUrl = () =>
+    (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+      .trim().replace(/^['\"]+|['\"]+$/g, '').replace(/\/+$/, '');
+
+  const authHeaders = (extra?: Record<string, string>) => ({
+    'Authorization': `Bearer ${token}`,
+    ...extra,
+  });
+
   // Converts **bold** markdown to <strong> tags, preserves newlines
   const renderText = (text: string) => {
-    return text.split('\n').map((line, lineIdx) => {
+    return text.split('\n').map((line, lineIdx, arr) => {
       const parts = line.split(/(\*\*[^*]+\*\*)/);
       return (
         <span key={lineIdx}>
@@ -48,20 +60,46 @@ export default function ChatPage() {
               ? <strong key={i} className="font-bold text-white">{part.slice(2, -2)}</strong>
               : <span key={i}>{part}</span>
           )}
-          {lineIdx < text.split('\n').length - 1 && <br />}
+          {lineIdx < arr.length - 1 && <br />}
         </span>
       );
     });
   };
 
+  // Load token + username, then fetch history
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) { router.push('/login'); return; }
+    const storedToken = localStorage.getItem('token');
+    if (!storedToken) { router.push('/login'); return; }
+    setToken(storedToken);
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = JSON.parse(atob(storedToken.split('.')[1]));
       setUsername(payload.sub || payload.username || payload.email || 'USER');
-    } catch { /* ignore decode errors */ }
+    } catch { /* ignore */ }
   }, [router]);
+
+  // Fetch message history once token is available
+  useEffect(() => {
+    if (!token) return;
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch(`${cleanApiUrl()}/conversations/history?limit=100`, {
+          headers: authHeaders(),
+        });
+        if (!res.ok) return;
+        const data: { role: string; content: string; source: string }[] = await res.json();
+        const docMsgs = data
+          .filter(m => m.source === 'document')
+          .map(m => ({ role: m.role as 'user' | 'bot', content: m.content }));
+        const audioMsgs = data
+          .filter(m => m.source === 'audio')
+          .map(m => ({ role: m.role as 'user' | 'bot', content: m.content }));
+        if (docMsgs.length) { setRagMessages(docMsgs); setIsDocsLoaded(true); }
+        if (audioMsgs.length) setAudioMessages(audioMsgs);
+      } catch { /* ignore */ }
+    };
+    fetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -75,10 +113,7 @@ export default function ChatPage() {
       if (newWidth > 600) newWidth = 600;
       setSidebarWidth(newWidth);
     };
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.body.style.cursor = 'default';
-    };
+    const handleMouseUp = () => { setIsResizing(false); document.body.style.cursor = 'default'; };
     if (isResizing) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
@@ -92,12 +127,12 @@ export default function ChatPage() {
 
   const startListening = () => {
     if (!('webkitSpeechRecognition' in window) && !('speechRecognition' in window)) {
-      alert("Speech recognition is not supported in this browser.");
+      alert("Speech recognition not supported in this browser.");
       return;
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).speechRecognition;
-    const recognition = new SpeechRecognition();
+    const SR = (window as any).webkitSpeechRecognition || (window as any).speechRecognition;
+    const recognition = new SR();
     recognition.lang = language === 'Hindi' ? 'hi-IN' : 'en-US';
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -105,28 +140,41 @@ export default function ChatPage() {
     recognition.onend = () => setIsListening(false);
     recognition.onerror = () => setIsListening(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (event: any) => {
-      setInput(event.results[0][0].transcript);
-    };
+    recognition.onresult = (event: any) => setInput(event.results[0][0].transcript);
     recognition.start();
   };
 
-  const cleanApiUrl = () =>
-    (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
-      .trim().replace(/^['\"]+|['\"]+$/g, '').replace(/\/+$/, '');
-
-  // Document upload
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Called when user picks a file — if docs already loaded, show Replace/Add modal
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
+    if (isDocsLoaded) {
+      setPendingFiles(e.target.files);
+      setShowModeModal(true);
+    } else {
+      doUploadDocs(e.target.files, 'replace');
+    }
+  };
+
+  const doUploadDocs = async (files: FileList, mode: 'replace' | 'add') => {
+    setShowModeModal(false);
+    setPendingFiles(null);
     setIsUploading(true);
     const formData = new FormData();
-    for (let i = 0; i < e.target.files.length; i++) formData.append("files", e.target.files[i]);
+    for (let i = 0; i < files.length; i++) formData.append("files", files[i]);
+    formData.append("mode", mode);
     try {
-      const res = await fetch(`${cleanApiUrl()}/docs/upload`, { method: 'POST', body: formData });
+      const res = await fetch(`${cleanApiUrl()}/docs/upload`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData,
+      });
       if (res.ok) {
         setIsDocsLoaded(true);
-        // No success bubble — upload card state change is sufficient feedback
-      } else throw new Error("Upload failed");
+        if (mode === 'replace') setRagMessages([]); // clear UI history on replace
+      } else {
+        const err = await res.json();
+        alert(`Upload failed: ${err.detail}`);
+      }
     } catch {
       alert("Failed to upload documents.");
     } finally {
@@ -146,14 +194,17 @@ export default function ChatPage() {
     formData.append("language", language);
 
     try {
-      const res = await fetch(`${cleanApiUrl()}/audio/upload`, { method: 'POST', body: formData });
+      const res = await fetch(`${cleanApiUrl()}/audio/upload`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData,
+      });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.detail || "Processing failed");
       }
       const data = await res.json();
       setAudioSessionId(data.session_id);
-      // Push summary into chat as a bot message
       setAudioMessages(prev => [...prev, {
         role: 'bot',
         content: `✅ **${file.name}** transcribed successfully!\n\n📋 **Summary:**\n${data.summary}\n\nYou can now ask questions about the audio content.`
@@ -177,11 +228,15 @@ export default function ChatPage() {
       try {
         const res = await fetch(`${cleanApiUrl()}/docs/chat?language=${language}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ question: input, chat_history: ragMessages.map(m => [m.role === 'user' ? 'human' : 'assistant', m.content]) })
         });
         const data = await res.json();
-        const botMsg: Message = { role: 'bot', content: data.answer || "No response", audioUrl: data.audio_url ? `${cleanApiUrl()}${data.audio_url}` : data.audioUrl ? `${cleanApiUrl()}${data.audioUrl}` : undefined };
+        const botMsg: Message = {
+          role: 'bot',
+          content: data.answer || "No response",
+          audioUrl: data.audio_url ? `${cleanApiUrl()}${data.audio_url}` : undefined
+        };
         setRagMessages(prev => [...prev, botMsg]);
       } catch {
         setRagMessages(prev => [...prev, { role: 'bot', content: "Error connecting to backend." }]);
@@ -196,11 +251,15 @@ export default function ChatPage() {
       try {
         const res = await fetch(`${cleanApiUrl()}/audio/chat`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ session_id: audioSessionId, question: input, chat_history: audioChatHistory, language })
         });
         const data = await res.json();
-        const botMsg: Message = { role: 'bot', content: data.answer || "No response", audioUrl: data.audio_url ? `${cleanApiUrl()}${data.audio_url}` : undefined };
+        const botMsg: Message = {
+          role: 'bot',
+          content: data.answer || "No response",
+          audioUrl: data.audio_url ? `${cleanApiUrl()}${data.audio_url}` : undefined
+        };
         setAudioMessages(prev => [...prev, botMsg]);
         setAudioChatHistory(prev => [...prev, [input, data.answer]]);
       } catch {
@@ -219,7 +278,7 @@ export default function ChatPage() {
         className="glass flex flex-col p-4 border-r border-zinc-800 shrink-0 relative group"
         style={{ width: `${sidebarWidth}px` }}
       >
-        {/* Sidebar branding */}
+        {/* Branding */}
         <div className="flex items-center gap-3 mb-6 px-2">
           <div className="w-10 h-10 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center text-xl">🔐</div>
           <div>
@@ -227,6 +286,8 @@ export default function ChatPage() {
             <span className="text-xs font-bold text-zinc-500 tracking-widest">2.0 🚀</span>
           </div>
         </div>
+
+        {/* Username badge */}
         {username && (
           <div className="px-3 mb-6 py-3 bg-zinc-900/60 rounded-2xl border border-zinc-800">
             <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Logged in as</p>
@@ -273,40 +334,35 @@ export default function ChatPage() {
           </button>
         </div>
 
-        <div
-          onMouseDown={() => setIsResizing(true)}
-          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-indigo-500/30 transition-colors z-50"
-        />
+        <div onMouseDown={() => setIsResizing(true)} className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-indigo-500/30 transition-colors z-50" />
       </aside>
 
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col relative overflow-hidden">
 
-        {/* STICKY TOP HEADER — always visible */}
+        {/* STICKY TOP HEADER */}
         <div className="sticky top-0 z-40 border-b border-zinc-800 bg-black/80 backdrop-blur-xl px-8 py-4 flex items-center gap-4">
           <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
-          <div>
-            <h2 className="text-3xl font-black tracking-tight text-white">
-              {activeTab === 'chat' ? '📄 Query Vault Document Chat' : '🎙️ Query Vault Audio Chat'}
-            </h2>
-          </div>
+          <h2 className="text-3xl font-black tracking-tight text-white">
+            {activeTab === 'chat' ? '📄 Query Vault Document Chat' : '🎙️ Query Vault Audio Chat'}
+          </h2>
         </div>
 
         {/* SCROLLABLE CHAT AREA */}
         <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 scroll-smooth pb-36">
 
-          {/* DOC UPLOAD BLOCK — RAG tab */}
+          {/* DOC UPLOAD BLOCK */}
           {activeTab === 'chat' && (
             <div className="max-w-4xl mx-auto w-full">
               <label className={`flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${isUploading ? 'border-purple-500 bg-purple-500/5' : isDocsLoaded ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-zinc-700 hover:border-purple-500/50 bg-zinc-900/20'}`}>
                 {isUploading ? (
                   <><Loader2 className="animate-spin text-purple-400 mb-3" size={32} /><span className="text-purple-300 font-semibold">Indexing documents...</span></>
                 ) : isDocsLoaded ? (
-                  <><CheckCircle2 className="text-emerald-400 mb-3" size={32} /><span className="text-emerald-300 font-semibold">✅ Docs Loaded — Upload more anytime</span></>
+                  <><CheckCircle2 className="text-emerald-400 mb-3" size={32} /><span className="text-emerald-300 font-semibold">✅ Docs Loaded — Click to upload more</span></>
                 ) : (
                   <><FileUp className="text-zinc-500 mb-3" size={32} /><span className="text-zinc-300 font-semibold">Click to upload documents</span><span className="text-zinc-600 text-xs mt-1">PDF, DOCX, TXT</span></>
                 )}
-                <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" multiple onChange={handleFileUpload} disabled={isUploading} />
+                <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" multiple onChange={handleFileSelect} disabled={isUploading} />
               </label>
             </div>
           )}
@@ -335,7 +391,7 @@ export default function ChatPage() {
                 : 'bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-br-none'
               }`}>
                 <div className={`text-[10px] uppercase tracking-[0.3em] mb-3 font-black flex items-center gap-2 ${msg.role === 'user' ? 'text-indigo-400' : 'text-zinc-500'}`}>
-                  {msg.role === 'user' ? '👤 You' : '🤖 Intelligence'}
+                  {msg.role === 'user' ? `👤 ${username || 'You'}` : '🤖 Intelligence'}
                 </div>
                 <div className="text-base leading-relaxed">{renderText(msg.content)}</div>
                 {msg.audioUrl && (
@@ -360,6 +416,44 @@ export default function ChatPage() {
           <div className="h-10" />
           <div ref={scrollRef} />
         </div>
+
+        {/* REPLACE / ADD MODAL */}
+        {showModeModal && (
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="glass border border-zinc-700 rounded-[2rem] p-8 max-w-sm w-full mx-4 shadow-2xl">
+              <h3 className="text-xl font-black text-white mb-2">Upload Mode</h3>
+              <p className="text-zinc-400 text-sm mb-6">You already have documents loaded. What would you like to do?</p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => pendingFiles && doUploadDocs(pendingFiles, 'replace')}
+                  className="flex items-center gap-3 p-4 bg-rose-600/20 border border-rose-500/30 rounded-2xl text-rose-300 font-semibold hover:bg-rose-600/30 transition-all"
+                >
+                  <RefreshCw size={20} />
+                  <div className="text-left">
+                    <div className="font-bold">🔄 Replace Existing</div>
+                    <div className="text-xs text-rose-400/70">Clear old documents and start fresh</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => pendingFiles && doUploadDocs(pendingFiles, 'add')}
+                  className="flex items-center gap-3 p-4 bg-emerald-600/20 border border-emerald-500/30 rounded-2xl text-emerald-300 font-semibold hover:bg-emerald-600/30 transition-all"
+                >
+                  <PlusCircle size={20} />
+                  <div className="text-left">
+                    <div className="font-bold">➕ Add to Existing</div>
+                    <div className="text-xs text-emerald-400/70">Keep old docs and add new ones</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => { setShowModeModal(false); setPendingFiles(null); }}
+                  className="text-zinc-600 hover:text-zinc-400 text-sm mt-2 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* INPUT BAR */}
         <div className="p-4 md:p-6">

@@ -46,10 +46,12 @@ app.add_middleware(
 from routers.auth import router as auth_router
 from routers.documents import router as doc_router
 from routers.audio import router as audio_router
+from routers.conversations import router as conv_router
 
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(doc_router, prefix="/docs", tags=["Documents & RAG"])
 app.include_router(audio_router, prefix="/audio", tags=["Audio Agent"])
+app.include_router(conv_router, prefix="/conversations", tags=["Chat History"])
 
 @app.get("/")
 async def root():
