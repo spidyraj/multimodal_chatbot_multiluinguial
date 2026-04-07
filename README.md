@@ -25,10 +25,6 @@ Query Vault 2.0 is a state-of-the-art AI platform that allows users to securely 
 - **Timestamped RAG:** Searchable index built from timestamped segments, allowing the AI to cite specific moments (e.g., *"[02:15] The speaker mentions..."*).
 - **Export Capabilities:** Download the summary and full timestamped transcript as JSON or DOC formats.
 
-### 📺 YouTube Summarizer
-- Extracts core insights from YouTube videos simply by providing a URL.
-- Eliminates the need to watch long videos to get the main points.
-
 ### 🔐 Secure Multi-User System
 - **JWT Authentication:** Robust login/registration system with encrypted passwords and token-based sessions.
 - **Data Isolation:** Every user's documents and chat history are physically partitioned in both the database and the vector store.
@@ -79,27 +75,3 @@ Query Vault 2.0 is a state-of-the-art AI platform that allows users to securely 
 - `POST /audio/upload`: Process audio for transcription and summary.
 - `POST /chat/query`: Standard RAG query for documents.
 - `POST /audio/query`: Specialized RAG query for audio content.
-
----
-
-## 🚄 Local Development
-
-1. **Clone & Setup Backend:**
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   # Setup .env with GROQ_API_KEY, PINECONE_API_KEY, DATABASE_URL
-   python init_db.py
-   uvicorn main:app --reload
-   ```
-
-2. **Frontend Setup:**
-   ```bash
-   cd frontend
-   npm install
-   # Setup .env.local with NEXT_PUBLIC_API_URL
-   npm run dev
-   ```
-
----
-*Query Vault 2.0 - Unleashing Intelligent Document Communication.*
