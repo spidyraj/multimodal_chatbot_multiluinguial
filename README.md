@@ -2,7 +2,7 @@
 
 A professional, multi-modal RAG-based SaaS application designed for intelligent document interaction, audio processing, and video summarization.
 
-**Live Demo:** [https://frontend-production-566f.up.railway.app](https://frontend-production-566f.up.railway.app)
+**Live Demo:** [live_deployment_link](https://multimodal-chatbot-multiluinguial.vercel.app/)
 
 ---
 
